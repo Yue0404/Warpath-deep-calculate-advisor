@@ -23,6 +23,7 @@ function renderLanguage() {
   document.documentElement.dir = languages.find(({ code }) => code === locale).dir;
   document.title = `Warpath · ${t('title')}`;
   document.querySelectorAll('[data-i18n]').forEach((element) => { element.textContent = t(element.dataset.i18n); });
+  $('workspace').setAttribute('aria-label', t('title'));
   $('language').setAttribute('aria-label', t('language'));
   $('language').value = locale;
   $('goal').textContent = t('goal', { cap: calculator?.cap ?? 11 });
