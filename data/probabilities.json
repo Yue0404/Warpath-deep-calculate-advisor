@@ -1,0 +1,251 @@
+{
+  "schema_version": 1,
+  "purpose": "Warpath 超级计算机深度计算的暂定配置概率数据",
+  "source": {
+    "game_version": "657",
+    "package_version": "14.40.400",
+    "runtime_update_version": "14.40.32",
+    "runtime_revision": "643536",
+    "runtime_build_number": "430",
+    "generated_at_utc": "2026-09-30T08:20:09+00:00",
+    "group_key": 40,
+    "modeled_quality_indices": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "current_cap": 11,
+    "raw_fields": {
+      "global_level_id": 1,
+      "quailty_id": 2,
+      "drop_quailty_id": 3,
+      "drop_quailty_rate": 4
+    },
+    "files": [
+      "source/SuperComputerDeepCalculateDrop.lua",
+      "source/source_unpack_manifest.json"
+    ]
+  },
+  "evidence_boundary": {
+    "configuration_rows": "Drop.lua 的 [40] 分组：q0 显式引用 RepeatTable[1]，结果为 [1]；该行省略权重，使用 DefaultTable 权重 [10000]。q3 行省略结果列表，使用 DefaultTable 结果 [2,3,4,5]，并使用该行显式权重 [1400,3400,4000,1200]。",
+    "not_verified": [
+      "服务端如何为每个词条选择 quality_index，不能据此断言当前词条品阶必然等于该索引。",
+      "三个词条是否独立抽取没有被原始客户端配置证明。",
+      "配置无法说明 8 品直接到 11 品的实机现象是否由选档、补偿或其他服务端逻辑造成。"
+    ]
+  },
+  "weight_scale": 10000,
+  "delta_column_order": [
+    -2,
+    -1,
+    0,
+    1,
+    2
+  ],
+  "rows": [
+    {
+      "quality_index": 0,
+      "absolute_outcome_weights": {
+        "1": 10000
+      },
+      "delta_weights": {
+        "0": 0,
+        "1": 10000,
+        "2": 0,
+        "-2": 0,
+        "-1": 0
+      },
+      "row_total_weight": 10000
+    },
+    {
+      "quality_index": 1,
+      "absolute_outcome_weights": {
+        "1": 1300,
+        "2": 7500,
+        "3": 1200
+      },
+      "delta_weights": {
+        "0": 1300,
+        "1": 7500,
+        "2": 1200,
+        "-2": 0,
+        "-1": 0
+      },
+      "row_total_weight": 10000
+    },
+    {
+      "quality_index": 2,
+      "absolute_outcome_weights": {
+        "2": 4800,
+        "3": 4000,
+        "4": 1200
+      },
+      "delta_weights": {
+        "0": 4800,
+        "1": 4000,
+        "2": 1200,
+        "-2": 0,
+        "-1": 0
+      },
+      "row_total_weight": 10000
+    },
+    {
+      "quality_index": 3,
+      "absolute_outcome_weights": {
+        "2": 1400,
+        "3": 3400,
+        "4": 4000,
+        "5": 1200
+      },
+      "delta_weights": {
+        "0": 3400,
+        "1": 4000,
+        "2": 1200,
+        "-2": 0,
+        "-1": 1400
+      },
+      "row_total_weight": 10000
+    },
+    {
+      "quality_index": 4,
+      "absolute_outcome_weights": {
+        "3": 2500,
+        "4": 5000,
+        "5": 2500
+      },
+      "delta_weights": {
+        "0": 5000,
+        "1": 2500,
+        "2": 0,
+        "-2": 0,
+        "-1": 2500
+      },
+      "row_total_weight": 10000
+    },
+    {
+      "quality_index": 5,
+      "absolute_outcome_weights": {
+        "4": 4500,
+        "5": 2500,
+        "6": 3000
+      },
+      "delta_weights": {
+        "0": 2500,
+        "1": 3000,
+        "2": 0,
+        "-2": 0,
+        "-1": 4500
+      },
+      "row_total_weight": 10000
+    },
+    {
+      "quality_index": 6,
+      "absolute_outcome_weights": {
+        "4": 1000,
+        "5": 2000,
+        "6": 5000,
+        "7": 2000
+      },
+      "delta_weights": {
+        "0": 5000,
+        "1": 2000,
+        "2": 0,
+        "-2": 1000,
+        "-1": 2000
+      },
+      "row_total_weight": 10000
+    },
+    {
+      "quality_index": 7,
+      "absolute_outcome_weights": {
+        "5": 1000,
+        "6": 4500,
+        "7": 2000,
+        "8": 2500
+      },
+      "delta_weights": {
+        "0": 2000,
+        "1": 2500,
+        "2": 0,
+        "-2": 1000,
+        "-1": 4500
+      },
+      "row_total_weight": 10000
+    },
+    {
+      "quality_index": 8,
+      "absolute_outcome_weights": {
+        "6": 1500,
+        "7": 2500,
+        "8": 4000,
+        "9": 2000
+      },
+      "delta_weights": {
+        "0": 4000,
+        "1": 2000,
+        "2": 0,
+        "-2": 1500,
+        "-1": 2500
+      },
+      "row_total_weight": 10000
+    },
+    {
+      "quality_index": 9,
+      "absolute_outcome_weights": {
+        "7": 2000,
+        "8": 5000,
+        "9": 2000,
+        "10": 1000
+      },
+      "delta_weights": {
+        "0": 2000,
+        "1": 1000,
+        "2": 0,
+        "-2": 2000,
+        "-1": 5000
+      },
+      "row_total_weight": 10000
+    },
+    {
+      "quality_index": 10,
+      "absolute_outcome_weights": {
+        "9": 2000,
+        "10": 4000,
+        "11": 4000
+      },
+      "delta_weights": {
+        "0": 4000,
+        "1": 4000,
+        "2": 0,
+        "-2": 0,
+        "-1": 2000
+      },
+      "row_total_weight": 10000
+    },
+    {
+      "quality_index": 11,
+      "absolute_outcome_weights": {
+        "9": 1500,
+        "10": 4500,
+        "11": 4000
+      },
+      "delta_weights": {
+        "0": 4000,
+        "1": 0,
+        "2": 0,
+        "-2": 1500,
+        "-1": 4500
+      },
+      "row_total_weight": 10000
+    }
+  ]
+}
