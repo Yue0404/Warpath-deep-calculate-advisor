@@ -402,6 +402,27 @@ for (const { code } of languages) {
     messages[code][key] = value + expected.slice(index).map((name) => ` {${name}}`).join('');
   }
 }
+const comparisonLabels = {
+  'zh-CN': '词条对比',
+  'zh-TW': '詞條比較',
+  en: 'Attribute Comparison',
+  ar: 'مقارنة السمات',
+  fr: 'Comparaison des attributs',
+  de: 'Attributvergleich',
+  id: 'Perbandingan Atribut',
+  it: 'Confronto attributi',
+  ja: '属性比較',
+  ko: '속성 비교',
+  ms: 'Perbandingan Atribut',
+  pl: 'Porównanie atrybutów',
+  pt: 'Comparação de atributos',
+  ru: 'Сравнение атрибутов',
+  es: 'Comparación de atributos',
+  th: 'เปรียบเทียบคุณสมบัติ',
+  tr: 'Özellik Karşılaştırması',
+  vi: 'So sánh thuộc tính',
+};
+for (const { code } of languages) messages[code].comparison = comparisonLabels[code];
 
 export { languages, messages };
 
