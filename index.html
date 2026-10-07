@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#202327">
+  <meta name="description" content="Warpath 深度计算器，比较三条词条的整组洗练结果，提供保留或放弃建议。">
+  <title>Warpath · 深度计算器</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./src/app.js"></script>
+</head>
+<body>
+  <main class="page">
+    <header class="header">
+      <div><h1 data-i18n="title">深度计算器</h1><p class="intro" data-i18n="intro">录入品阶，判断本次结果是否值得保留。</p><p id="goal">目标：三条均达到 11 品</p></div>
+      <label class="language"><span class="sr-only" data-i18n="language">语言</span><select id="language" aria-label="语言"></select></label>
+    </header>
+    <div id="load-status" role="status">正在加载模型…</div>
+    <button id="retry" type="button" hidden data-i18n="retry">重试</button>
+    <section class="workspace" aria-label="计算器">
+      <form id="calculator-form" class="editor" novalidate>
+        <fieldset id="inputs" disabled>
+          <div class="table-head"><span></span><h2 data-i18n="current">当前品阶</h2><h2 data-i18n="result">本次洗练结果</h2></div>
+          <div id="quality-rows"></div>
+          <div class="form-actions">
+            <label class="mode"><span data-i18n="mode">洗练方式</span><select id="mode"></select></label>
+            <button type="submit" class="primary" data-i18n="compare">查看建议</button>
+            <button type="button" id="reset" class="text-button" data-i18n="reset">重置</button>
+          </div>
+        </fieldset>
+        <p id="form-error" class="warning" role="alert" hidden></p>
+      </form>
+      <section class="recommendation" aria-live="polite" aria-atomic="true">
+        <h2 id="decision-title">等待洗练结果</h2>
+        <p id="decision-text">请录入本次三个词条的结果</p>
+        <dl class="metrics">
+          <div><dt data-i18n="currentValue">放弃后的期望剩余卡数</dt><dd><span id="current-value">—</span><small class="metric-unit" hidden></small></dd></div>
+          <div><dt data-i18n="nextValue">保留后的期望剩余卡数</dt><dd><span id="next-value">—</span><small class="metric-unit" hidden></small></dd></div>
+        </dl>
+        <p id="difference" hidden></p>
+        <p id="unsupported" class="warning" hidden data-i18n="unsupported"></p>
+        <p id="locked-note" class="caption" hidden data-i18n="lockedNote"></p>
+        <div class="result-actions"><button type="button" id="apply" class="primary" hidden data-i18n="apply">将结果设为当前</button><button type="button" id="next-roll" hidden data-i18n="nextRoll">录入下一次结果</button></div>
+      </section>
+    </section>
+    <aside class="notes"><p data-i18n="equalNote">默认三个词条等价；实际上根据玩家的兵卡配置，三个词条的价值并不完全相同。</p><p data-i18n="modelNote">暂定模型：结果独立抽取，配置索引视为当前品阶；不计保底与追赶效果。</p></aside>
+    <details class="method"><summary><span data-i18n="method">模型与使用说明</span><span id="version"></span></summary><div class="method-body"><p data-i18n="methodText"></p><p id="chip-note"></p><p data-i18n="unofficial"></p><a href="./data/model.json" target="_blank" rel="noopener" data-i18n="dataLink">查看模型数据</a></div></details>
+    <footer><div><p data-i18n="author">Warpath 钥钥 国际服 uid：35600096</p><small data-i18n="footer">玩家制作的计算工具，与游戏官方无关联。</small></div><a href="https://space.bilibili.com/30300043" target="_blank" rel="noopener noreferrer" data-i18n="bilibili">哔哩哔哩主页</a></footer>
+  </main>
+</body>
+</html>

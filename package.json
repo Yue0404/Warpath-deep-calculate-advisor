@@ -1,0 +1,14 @@
+{
+  "name": "warpath-deep-calculator",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "build": "node scripts/build.mjs",
+    "dev": "npm run build && node scripts/serve.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
