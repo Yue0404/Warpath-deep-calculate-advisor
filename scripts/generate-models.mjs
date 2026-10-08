@@ -210,6 +210,7 @@ function sanitizeProfiles(profiles, groups) {
       label: profile.label,
       openAt: profile.open_at,
       timezone: profile.timezone,
+      refreshHourUtc: region === 'cn' ? 16 : 0,
       version: {
         game: profile.version.game,
         package: profile.version.package,

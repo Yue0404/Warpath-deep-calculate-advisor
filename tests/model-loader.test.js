@@ -19,6 +19,29 @@ test('阶段边界夹具在开服与每次升档前后1毫秒均匹配', () => {
   }
 });
 
+test('两服按各自UTC刷新边界计算游戏内容日期和下一次日刷新', () => {
+  const beforeUtcMidnight = selectStage(runtimeModels.profiles, 'international', '2026-08-08T23:59:59.999Z');
+  const atUtcMidnight = selectStage(runtimeModels.profiles, 'international', '2026-08-09T00:00:00Z');
+  assert.equal(beforeUtcMidnight.gameDate, '2026-08-08');
+  assert.equal(beforeUtcMidnight.nextDailyRefreshAt, Date.parse('2026-08-09T00:00:00Z'));
+  assert.equal(atUtcMidnight.gameDate, '2026-08-09');
+  assert.equal(atUtcMidnight.nextDailyRefreshAt, Date.parse('2026-08-10T00:00:00Z'));
+
+  const beforeCnRefresh = selectStage(runtimeModels.profiles, 'cn', '2026-08-08T15:59:59.999Z');
+  const atCnRefresh = selectStage(runtimeModels.profiles, 'cn', '2026-08-08T16:00:00Z');
+  assert.equal(beforeCnRefresh.gameDate, '2026-08-08');
+  assert.equal(beforeCnRefresh.nextDailyRefreshAt, Date.parse('2026-08-08T16:00:00Z'));
+  assert.equal(atCnRefresh.gameDate, '2026-08-09');
+  assert.equal(atCnRefresh.nextDailyRefreshAt, Date.parse('2026-08-09T16:00:00Z'));
+
+  const exampleCn = selectStage(runtimeModels.profiles, 'cn', '2026-08-08T20:00:00Z');
+  const exampleInternational = selectStage(runtimeModels.profiles, 'international', '2026-08-08T20:00:00Z');
+  assert.equal(exampleCn.gameDate, '2026-08-09');
+  assert.equal(exampleCn.nextDailyRefreshAt, Date.parse('2026-08-09T16:00:00Z'));
+  assert.equal(exampleInternational.gameDate, '2026-08-08');
+  assert.equal(exampleInternational.nextDailyRefreshAt, Date.parse('2026-08-09T00:00:00Z'));
+});
+
 test('同一绝对时刻按所选服务器分别载入CN20/7与国际40/11', async () => {
   const now = Date.parse('2026-10-08T00:00:00Z');
   const loadModel = createModelLoader({ fetchImpl: async () => ({ ok: true, json: async () => runtimeModels }) });

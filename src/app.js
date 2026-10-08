@@ -1,6 +1,8 @@
 import { availableDeltas, deriveResult, parseQuality } from './input.js';
 import { languages, detectLanguage, translate } from './i18n.js';
 import { loadModel } from './model-loader.js';
+import { createNetworkClock } from './network-time.js';
+import { resolveBrowserPreference, resolveInitialServer, shouldShowServerWelcome } from './preferences.js';
 import { renderRecommendation } from './viewer.js';
 
 const $ = (id) => document.getElementById(id);
@@ -8,10 +10,20 @@ const storage = {
   get(key) { try { return localStorage.getItem(key); } catch { return null; } },
   set(key, value) { try { localStorage.setItem(key, value); } catch { /* 禁用存储时仍可使用计算器。 */ } },
 };
+const supportedLocales = languages.map(({ code }) => code);
+const browserPreference = resolveBrowserPreference({
+  browserLanguages: navigator.languages,
+  supportedLocales,
+  detectLanguage,
+  storage,
+});
 let locale = storage.get('warpath-language');
-if (!languages.some(({ code }) => code === locale)) locale = detectLanguage(navigator.languages);
-let region = storage.get('warpath-server');
-if (!['cn', 'international'].includes(region)) region = 'international';
+if (!supportedLocales.includes(locale)) locale = browserPreference;
+const savedServer = storage.get('warpath-server');
+let region = resolveInitialServer({ browserPreference, savedServer });
+const showServerWelcome = shouldShowServerWelcome({ browserPreference, storage });
+const showServerControl = browserPreference === 'zh-CN';
+const networkClock = createNetworkClock();
 let calculator = null;
 let modelState = null;
 let appliedRegion = null;
@@ -21,11 +33,13 @@ let loadingRegion = null;
 let stageTimer = null;
 const maximumTimerDelay = 2147483647;
 let decision = null;
+let resultQualities = null;
 let current = [0, 0, 0];
 let deltas = ['', '', ''];
 let mode = '';
 let pendingMode = '';
 let closingDialog = false;
+let returnFocusAfterLanguageClose = false;
 const t = (key, values) => translate(locale, key, values);
 const lockedIndex = () => mode === '' ? null : Number(mode);
 const resultAt = (index, rawCurrent = current[index], rawDelta = deltas[index]) => deriveResult(
@@ -44,19 +58,59 @@ function renderLanguage() {
   document.querySelectorAll('[data-i18n]').forEach((element) => { element.textContent = t(element.dataset.i18n); });
   $('workspace').setAttribute('aria-label', t('title'));
   $('language').setAttribute('aria-label', t('language'));
-  $('language').value = locale;
+  $('language-options').setAttribute('aria-label', t('language'));
+  $('language-name').textContent = languages.find(({ code }) => code === locale).name;
   $('server').replaceChildren(
     new Option(t('serverCn'), 'cn'),
     new Option(t('serverInternational'), 'international'),
   );
   $('server').value = region;
-  const flag = languages.find(({ code }) => code === locale)?.flag;
+  const flag = locale === 'zh-TW' && browserPreference === 'zh-CN'
+    ? 'cn' : languages.find(({ code }) => code === locale)?.flag;
   if (flag && $('language-flag')) $('language-flag').src = new URL(`../flags/${flag.toLowerCase()}.svg`, import.meta.url).href;
+  renderLanguageOptions();
+  $('server-control').hidden = !showServerControl;
+  if ($('time-status')) renderTimeStatus();
   if (calculator) renderInputs();
   if (!$('load-status').hidden) $('load-status').textContent = t($('retry').hidden ? 'loading' : 'loadError');
   $('form-error').hidden = true;
   renderStageStatus();
   updateRecommendation();
+}
+
+function languageFlag(code) {
+  if (code === 'zh-TW' && browserPreference === 'zh-CN') return 'cn';
+  return languages.find(({ code: candidate }) => candidate === code)?.flag ?? 'un';
+}
+
+function renderLanguageOptions() {
+  const options = $('language-options');
+  options.replaceChildren(...languages.map(({ code, name }) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'language-option';
+    button.dataset.language = code;
+    button.setAttribute('aria-pressed', String(code === locale));
+    const flag = document.createElement('img');
+    flag.src = new URL(`../flags/${languageFlag(code).toLowerCase()}.svg`, import.meta.url).href;
+    flag.alt = '';
+    flag.setAttribute('aria-hidden', 'true');
+    const label = document.createElement('span');
+    label.textContent = name;
+    button.append(flag, label);
+    return button;
+  }));
+}
+
+function setLocale(nextLocale) {
+  if (!supportedLocales.includes(nextLocale)) return;
+  if (nextLocale !== locale) {
+    locale = nextLocale;
+    storage.set('warpath-language', locale);
+    renderLanguage();
+  }
+  returnFocusAfterLanguageClose = true;
+  $('language-options').hidePopover();
 }
 
 function makeCurrentInput(index) {
@@ -155,12 +209,61 @@ function renderStageStatus() {
   }
   const { status, stage } = modelState;
   const statusText = status === 'ready'
-    ? t('stageStatus', { group: stage.group, cap: stage.cap })
+    ? t('stageStatus', { group: stage.group, cap: stage.cap, gameDate: stage.gameDate })
     : status === 'not_open'
       ? t('stageNotOpen')
       : t('stageUnsupported', { group: stage.group });
-  element.textContent = `${statusText} · ${t('clockEstimate')}`;
+  element.textContent = statusText;
   element.hidden = false;
+}
+
+function renderTimeStatus() {
+  const element = $('time-status');
+  if (!element) return;
+  const status = networkClock.status();
+  if (!status.ready && status.lastError) {
+    element.textContent = t('timeError');
+    element.hidden = false;
+  } else if (status.lastError) {
+    element.textContent = t('timeSync');
+    element.hidden = false;
+  } else {
+    element.textContent = '';
+    element.hidden = true;
+  }
+  if (status.lastError) {
+    $('retry').hidden = false;
+    $('retry').textContent = t('timeRetry');
+  } else if (status.ready) {
+    $('retry').textContent = t('retry');
+  } else {
+    $('retry').textContent = t('timeRetry');
+  }
+}
+
+function positionLanguageOptions() {
+  const trigger = $('language').getBoundingClientRect();
+  const options = $('language-options');
+  const width = Math.min(options.offsetWidth || 260, window.innerWidth - 24);
+  const height = options.offsetHeight || Math.min(window.innerHeight - 24, 360);
+  const rightToLeft = document.documentElement.dir === 'rtl';
+  const preferredLeft = rightToLeft ? trigger.right - width : trigger.left;
+  const left = Math.max(12, Math.min(preferredLeft, window.innerWidth - width - 12));
+  const below = trigger.bottom + 8;
+  const top = below + height <= window.innerHeight - 12
+    ? below : Math.max(12, trigger.top - height - 8);
+  Object.assign(options.style, { position: 'fixed', left: `${left}px`, top: `${top}px`, right: 'auto', bottom: 'auto', margin: '0' });
+}
+
+function toggleLanguageOptions() {
+  const options = $('language-options');
+  if (options.matches(':popover-open')) {
+    options.hidePopover();
+    return;
+  }
+  options.showPopover();
+  positionLanguageOptions();
+  requestAnimationFrame(positionLanguageOptions);
 }
 
 function updateRecommendation() {
@@ -182,6 +285,7 @@ function resetQualityState() {
   deltas = ['', '', ''];
   mode = '';
   decision = null;
+  resultQualities = null;
   $('form-error').hidden = true;
   $('quality-rows').replaceChildren();
   updateRecommendation();
@@ -189,6 +293,7 @@ function resetQualityState() {
 
 function invalidate() {
   decision = null;
+  resultQualities = null;
   $('form-error').hidden = true;
   updateRecommendation();
 }
@@ -205,18 +310,39 @@ function scheduleStageCheck(nextChangeAt) {
   if (stageTimer !== null) clearTimeout(stageTimer);
   stageTimer = null;
   if (!Number.isFinite(nextChangeAt)) return;
-  const delay = Math.max(0, nextChangeAt - Date.now());
+  const delay = networkClock.status().lastError
+    ? 30_000 : Math.max(0, nextChangeAt - networkClock.now());
   stageTimer = setTimeout(() => {
     stageTimer = null;
-    if (Date.now() >= nextChangeAt) loadCurrentModel();
+    if (networkClock.status().lastError || networkClock.now() >= nextChangeAt) loadCurrentModel();
     else scheduleStageCheck(nextChangeAt);
   }, Math.min(delay, maximumTimerDelay));
 }
 
-function checkStageBoundary() {
+async function checkStageBoundary() {
+  const clockSync = await networkClock.sync();
+  renderTimeStatus();
+  if (!clockSync.ok && !networkClock.isReady()) {
+    calculator = null;
+    modelState = null;
+    decision = null;
+    resultQualities = null;
+    $('inputs').disabled = true;
+    $('quality-rows').replaceChildren();
+    $('mode').replaceChildren();
+    $('load-status').textContent = t('timeError');
+    $('load-status').hidden = false;
+    $('retry').hidden = false;
+    updateRecommendation();
+    return;
+  }
+  if (!modelState) {
+    loadCurrentModel();
+    return;
+  }
   const nextChangeAt = modelState?.stage?.nextChangeAt;
   if (!Number.isFinite(nextChangeAt)) return;
-  if (Date.now() >= nextChangeAt) loadCurrentModel();
+  if (networkClock.now() >= nextChangeAt) loadCurrentModel();
   else scheduleStageCheck(nextChangeAt);
 }
 
@@ -233,18 +359,23 @@ async function loadCurrentModel() {
   $('load-status').textContent = t('loading');
   $('retry').hidden = true;
   $('form-error').hidden = true;
-  calculator = null;
-  modelState = null;
-  decision = null;
-  $('quality-rows').replaceChildren();
-  $('mode').replaceChildren();
-  $('stage-status').hidden = true;
-  updateRecommendation();
+  if (!calculator) {
+    modelState = null;
+    decision = null;
+    resultQualities = null;
+    $('quality-rows').replaceChildren();
+    $('mode').replaceChildren();
+    $('stage-status').hidden = true;
+    updateRecommendation();
+  }
   let boundaryMissed = false;
   try {
-    const loaded = await loadModel(requestedRegion, Date.now());
+    const clockSync = await networkClock.sync();
+    renderTimeStatus();
+    if (!clockSync.ok && !networkClock.isReady()) throw new Error('无法获取首次网络时间');
+    const loaded = await loadModel(requestedRegion, networkClock.now());
     if (sequence !== loadSequence || requestedRegion !== region) return;
-    if (Number.isFinite(loaded.stage?.nextChangeAt) && Date.now() >= loaded.stage.nextChangeAt) {
+    if (Number.isFinite(loaded.stage?.nextChangeAt) && networkClock.now() >= loaded.stage.nextChangeAt) {
       boundaryMissed = true;
       return;
     }
@@ -259,6 +390,9 @@ async function loadCurrentModel() {
       $('inputs').disabled = false;
       renderInputs();
     } else {
+      calculator = null;
+      decision = null;
+      resultQualities = null;
       $('inputs').disabled = true;
       $('quality-rows').replaceChildren();
       $('mode').replaceChildren();
@@ -269,16 +403,18 @@ async function loadCurrentModel() {
     scheduleStageCheck(loaded.stage?.nextChangeAt);
   } catch (error) {
     if (sequence !== loadSequence || requestedRegion !== region) return;
-    console.error('模型加载失败', error);
+    if (networkClock.isReady()) console.error('模型加载失败', error);
     calculator = null;
     modelState = null;
     decision = null;
+    resultQualities = null;
     $('inputs').disabled = true;
     $('quality-rows').replaceChildren();
     $('mode').replaceChildren();
     $('stage-status').hidden = true;
-    $('load-status').textContent = t('loadError');
+    $('load-status').textContent = networkClock.isReady() ? t('loadError') : t('timeError');
     $('retry').hidden = false;
+    renderTimeStatus();
     updateRecommendation();
   } finally {
     if (sequence === loadSequence) {
@@ -299,6 +435,17 @@ function selectRegion() {
   $('inputs').disabled = true;
   $('stage-status').hidden = true;
   loadCurrentModel();
+}
+
+function acceptWashResult() {
+  if (!decision || !resultQualities) return;
+  current = [...resultQualities];
+  clearResults();
+}
+
+function discardWashResult() {
+  if (!decision) return;
+  clearResults();
 }
 
 function parseCssTime(value) {
@@ -352,11 +499,30 @@ function requestLock(nextMode) {
   $('lock-continue').focus();
 }
 
-$('language').replaceChildren(...languages.map(({ code, name }) => new Option(name, code)));
-$('language').addEventListener('change', (event) => {
-  locale = event.target.value;
-  storage.set('warpath-language', locale);
-  renderLanguage();
+$('language').addEventListener('click', toggleLanguageOptions);
+$('language-options').addEventListener('click', (event) => {
+  const option = event.target.closest('[data-language]');
+  if (option) setLocale(option.dataset.language);
+});
+$('language-options').addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  event.preventDefault();
+  returnFocusAfterLanguageClose = true;
+  $('language-options').hidePopover();
+});
+$('language-options').addEventListener('toggle', (event) => {
+  const isOpen = event.newState === 'open';
+  $('language').setAttribute('aria-expanded', String(isOpen));
+  if (!isOpen && returnFocusAfterLanguageClose) {
+    returnFocusAfterLanguageClose = false;
+    $('language').focus();
+  }
+});
+document.addEventListener('focusin', (event) => {
+  const options = $('language-options');
+  if (options.matches(':popover-open') && event.target !== $('language') && !options.contains(event.target)) {
+    options.hidePopover();
+  }
 });
 $('server').addEventListener('change', selectRegion);
 $('quality-rows').addEventListener('input', (event) => {
@@ -406,6 +572,10 @@ $('lock-dialog').addEventListener('cancel', (event) => {
   event.preventDefault();
   closeLockDialog(true);
 });
+$('server-welcome-close').addEventListener('click', () => $('server-welcome-dialog').close());
+$('server-welcome-dialog').addEventListener('close', () => {
+  storage.set('warpath-server-welcome-dismissed', 'true');
+});
 $('calculator-form').addEventListener('submit', (event) => {
   event.preventDefault();
   if (!calculator || $('inputs').disabled) return;
@@ -422,7 +592,7 @@ $('calculator-form').addEventListener('submit', (event) => {
     return;
   }
   current = parsed.map(({ value }) => value);
-  if (completeState()) { decision = null; updateRecommendation(); return; }
+  if (completeState()) { decision = null; resultQualities = null; updateRecommendation(); return; }
   const rawDeltas = [0, 1, 2].map((index) => lockedIndex() === index ? '0' : $(`delta-${index}`)?.value ?? '');
   const results = rawDeltas.map((delta, index) => deriveResult(current[index], delta, calculator.cap, lockedIndex() === index));
   if (results.some((result) => !result.valid)) {
@@ -433,6 +603,7 @@ $('calculator-form').addEventListener('submit', (event) => {
   const next = results.map(({ value }) => value);
   try {
     decision = calculator.evaluate(current, next, lockedIndex());
+    resultQualities = next;
     $('form-error').hidden = true;
     updateRecommendation();
   } catch (error) {
@@ -445,16 +616,16 @@ $('reset').addEventListener('click', () => {
   mode = '';
   clearResults();
 });
-$('apply').addEventListener('click', () => {
-  if (!decision) return;
-  current = [0, 1, 2].map((index) => resultAt(index).value);
-  clearResults();
-});
-$('next-roll').addEventListener('click', clearResults);
+$('apply').addEventListener('click', acceptWashResult);
+$('next-roll').addEventListener('click', discardWashResult);
 $('retry').addEventListener('click', loadCurrentModel);
 window.addEventListener('focus', checkStageBoundary);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') checkStageBoundary();
 });
 renderLanguage();
+window.addEventListener('resize', () => {
+  if ($('language-options').matches(':popover-open')) positionLanguageOptions();
+});
+if (showServerWelcome) $('server-welcome-dialog').showModal();
 loadCurrentModel();

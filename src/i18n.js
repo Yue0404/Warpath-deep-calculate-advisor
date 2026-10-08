@@ -549,6 +549,65 @@ const visibleGameUi = {
 const visibleGameKeys = ['title','intro','current','result','quality','delta','deltaLabel','unchanged','mode','all','lock','qualityRange','invalidChange','qualityLabel','apply','nextRoll','indifferent','stageStatus'];
 for (const [code, labels] of Object.entries(visibleGameUi)) Object.assign(messages[code], Object.fromEntries(visibleGameKeys.map((key) => [key, labels[key]])));
 
+const calculateLabels = {
+  'zh-CN':'计算','zh-TW':'計算',en:'Calculate',ar:'احسب',fr:'Calculer',de:'Berechnen',id:'Hitung',it:'Calcola',
+  ja:'計算',ko:'계산',ms:'Kira',pl:'Oblicz',pt:'Calcular',ru:'Рассчитать',es:'Calcular',th:'คำนวณ',tr:'Hesapla',vi:'Tính toán',
+};
+for (const [code, label] of Object.entries(calculateLabels)) messages[code].compare = label;
+
+const contentDateStatus = {
+  'zh-CN':'当前配置 {group} · 上限 {cap} 品 · 游戏内容日期 {gameDate}',
+  'zh-TW':'目前配置 {group} · 上限 {cap} 品 · 遊戲內容日期 {gameDate}',
+  en:'Current configuration {group} · maximum rank {cap} · game content date {gameDate}',
+  ar:'الإعداد الحالي {group} · الحد الأقصى للرتبة {cap} · تاريخ محتوى اللعبة {gameDate}',
+  fr:'Configuration actuelle {group} · rang maximal {cap} · date du contenu du jeu {gameDate}',
+  de:'Aktuelle Konfiguration {group} · maximaler Rang {cap} · Spieldatum {gameDate}',
+  id:'Konfigurasi saat ini {group} · rank maksimum {cap} · tanggal konten game {gameDate}',
+  it:'Configurazione attuale {group} · grado massimo {cap} · data dei contenuti di gioco {gameDate}',
+  ja:'現在の設定 {group} · 最大ランク {cap} · ゲーム内容の日付 {gameDate}',
+  ko:'현재 설정 {group} · 최대 등급 {cap} · 게임 콘텐츠 날짜 {gameDate}',
+  ms:'Konfigurasi semasa {group} · pangkat maksimum {cap} · tarikh kandungan permainan {gameDate}',
+  pl:'Bieżąca konfiguracja {group} · maksymalna ranga {cap} · data zawartości gry {gameDate}',
+  pt:'Configuração atual {group} · nível máximo {cap} · data do conteúdo do jogo {gameDate}',
+  ru:'Текущая конфигурация {group} · максимальный ранг {cap} · дата игрового контента {gameDate}',
+  es:'Configuración actual {group} · rango máximo {cap} · fecha del contenido del juego {gameDate}',
+  th:'การกำหนดค่าปัจจุบัน {group} · ระดับสูงสุด {cap} · วันที่ของเนื้อหาในเกม {gameDate}',
+  tr:'Mevcut yapılandırma {group} · maksimum derece {cap} · oyun içeriği tarihi {gameDate}',
+  vi:'Cấu hình hiện tại {group} · bậc tối đa {cap} · ngày nội dung trò chơi {gameDate}',
+};
+for (const [code, label] of Object.entries(contentDateStatus)) messages[code].stageStatus = label;
+
+const preferenceAndClockUi = {
+  'zh-CN': {acceptResult:'我接受本次结果',discardResult:'我放弃本次结果',welcomeServer:'你可以在页面右上方切换国服和国际服。',welcomeClose:'知道了',timeSync:'网络时间更新失败，继续使用上次同步的时间。',timeError:'无法获取网络时间，请重试。',timeRetry:'重试网络时间'},
+  'zh-TW': {acceptResult:'我接受本次結果',discardResult:'我放棄本次結果',welcomeServer:'你可以在頁面右上方切換國服和國際服。',welcomeClose:'知道了',timeSync:'網路時間更新失敗，繼續使用上次同步的時間。',timeError:'無法取得網路時間，請重試。',timeRetry:'重試網路時間'},
+  en: {acceptResult:'I accept this result',discardResult:'I discard this result',welcomeServer:'You can switch between the China and International servers in the upper-right corner.',welcomeClose:'Got it',timeSync:'Network time update failed. Continuing with the last synchronized time.',timeError:'Could not obtain network time. Please retry.',timeRetry:'Retry network time'},
+  ar: {acceptResult:'أقبل هذه النتيجة',discardResult:'أرفض هذه النتيجة',welcomeServer:'يمكنك التبديل بين الخادم الصيني والدولي من أعلى يسار الصفحة.',welcomeClose:'حسنًا',timeSync:'فشل تحديث الوقت عبر الشبكة. سيتم استخدام آخر وقت تمت مزامنته.',timeError:'تعذر الحصول على وقت الشبكة. يُرجى إعادة المحاولة.',timeRetry:'إعادة محاولة توقيت الشبكة'},
+  fr: {acceptResult:'J’accepte ce résultat',discardResult:'Je rejette ce résultat',welcomeServer:'Vous pouvez changer de serveur chinois ou international en haut à droite.',welcomeClose:'Compris',timeSync:'Échec de la mise à jour de l’heure réseau. La dernière heure synchronisée est utilisée.',timeError:'Impossible d’obtenir l’heure réseau. Veuillez réessayer.',timeRetry:'Réessayer la synchronisation'},
+  de: {acceptResult:'Dieses Ergebnis annehmen',discardResult:'Dieses Ergebnis ablehnen',welcomeServer:'Oben rechts kannst du zwischen dem chinesischen und dem internationalen Server wechseln.',welcomeClose:'Verstanden',timeSync:'Netzwerkzeit konnte nicht aktualisiert werden. Die zuletzt synchronisierte Zeit wird weiterverwendet.',timeError:'Netzwerkzeit konnte nicht abgerufen werden. Bitte erneut versuchen.',timeRetry:'Netzwerkzeit erneut abrufen'},
+  id: {acceptResult:'Saya menerima hasil ini',discardResult:'Saya menolak hasil ini',welcomeServer:'Kamu dapat beralih antara server Tiongkok dan internasional di pojok kanan atas.',welcomeClose:'Mengerti',timeSync:'Pembaruan waktu jaringan gagal. Waktu terakhir yang tersinkronisasi tetap digunakan.',timeError:'Waktu jaringan tidak dapat diperoleh. Silakan coba lagi.',timeRetry:'Coba sinkronkan waktu lagi'},
+  it: {acceptResult:'Accetto questo risultato',discardResult:'Rifiuto questo risultato',welcomeServer:'Puoi passare dal server cinese a quello internazionale in alto a destra.',welcomeClose:'Ho capito',timeSync:'Aggiornamento dell’ora di rete non riuscito. Si continua a usare l’ultima ora sincronizzata.',timeError:'Impossibile ottenere l’ora di rete. Riprova.',timeRetry:'Riprova a sincronizzare l’ora'},
+  ja: {acceptResult:'今回の結果を受け入れる',discardResult:'今回の結果を放棄する',welcomeServer:'ページ右上で中国サーバーと国際サーバーを切り替えられます。',welcomeClose:'確認',timeSync:'ネットワーク時刻を更新できません。前回同期した時刻を引き続き使用します。',timeError:'ネットワーク時刻を取得できません。再試行してください。',timeRetry:'ネットワーク時刻を再取得'},
+  ko: {acceptResult:'이번 결과를 수락합니다',discardResult:'이번 결과를 포기합니다',welcomeServer:'페이지 오른쪽 위에서 중국 서버와 국제 서버를 전환할 수 있습니다.',welcomeClose:'확인',timeSync:'네트워크 시간 업데이트에 실패했습니다. 마지막으로 동기화된 시간을 계속 사용합니다.',timeError:'네트워크 시간을 가져오지 못했습니다. 다시 시도하세요.',timeRetry:'네트워크 시간 다시 동기화'},
+  ms: {acceptResult:'Saya menerima hasil ini',discardResult:'Saya menolak hasil ini',welcomeServer:'Anda boleh menukar antara pelayan China dan antarabangsa di penjuru kanan atas.',welcomeClose:'Faham',timeSync:'Kemas kini waktu rangkaian gagal. Waktu terakhir yang disegerakkan akan terus digunakan.',timeError:'Waktu rangkaian tidak dapat diperoleh. Sila cuba lagi.',timeRetry:'Cuba segerakkan waktu lagi'},
+  pl: {acceptResult:'Akceptuję ten wynik',discardResult:'Odrzucam ten wynik',welcomeServer:'W prawym górnym rogu możesz przełączać serwer chiński i międzynarodowy.',welcomeClose:'Rozumiem',timeSync:'Nie udało się zaktualizować czasu sieciowego. Używany jest ostatni zsynchronizowany czas.',timeError:'Nie można pobrać czasu z sieci. Spróbuj ponownie.',timeRetry:'Ponów synchronizację czasu'},
+  pt: {acceptResult:'Aceito este resultado',discardResult:'Rejeito este resultado',welcomeServer:'Você pode alternar entre os servidores da China e internacional no canto superior direito.',welcomeClose:'Entendi',timeSync:'Falha ao atualizar o horário da rede. O último horário sincronizado continuará em uso.',timeError:'Não foi possível obter o horário da rede. Tente novamente.',timeRetry:'Tentar sincronizar novamente'},
+  ru: {acceptResult:'Принять этот результат',discardResult:'Отклонить этот результат',welcomeServer:'Переключать китайский и международный серверы можно в правом верхнем углу.',welcomeClose:'Понятно',timeSync:'Не удалось обновить сетевое время. Продолжается использование последнего синхронизированного времени.',timeError:'Не удалось получить сетевое время. Повторите попытку.',timeRetry:'Повторить синхронизацию времени'},
+  es: {acceptResult:'Acepto este resultado',discardResult:'Rechazo este resultado',welcomeServer:'Puedes cambiar entre los servidores de China e internacional en la esquina superior derecha.',welcomeClose:'Entendido',timeSync:'No se pudo actualizar la hora de la red. Se sigue usando la última hora sincronizada.',timeError:'No se pudo obtener la hora de la red. Inténtalo de nuevo.',timeRetry:'Volver a sincronizar la hora'},
+  th: {acceptResult:'ยอมรับผลลัพธ์นี้',discardResult:'ปฏิเสธผลลัพธ์นี้',welcomeServer:'สลับระหว่างเซิร์ฟเวอร์จีนและเซิร์ฟเวอร์นานาชาติได้ที่มุมขวาบน',welcomeClose:'เข้าใจแล้ว',timeSync:'อัปเดตเวลาเครือข่ายไม่สำเร็จ จะใช้เวลาที่ซิงค์ไว้ล่าสุดต่อไป',timeError:'รับเวลาเครือข่ายไม่ได้ โปรดลองอีกครั้ง',timeRetry:'ลองซิงค์เวลาอีกครั้ง'},
+  tr: {acceptResult:'Bu sonucu kabul ediyorum',discardResult:'Bu sonucu reddediyorum',welcomeServer:'Sağ üst köşeden Çin ve uluslararası sunucular arasında geçiş yapabilirsiniz.',welcomeClose:'Anladım',timeSync:'Ağ saati güncellenemedi. Son eşitlenen saat kullanılmaya devam ediyor.',timeError:'Ağ saati alınamadı. Lütfen yeniden deneyin.',timeRetry:'Ağ saatini yeniden eşitle'},
+  vi: {acceptResult:'Tôi chấp nhận kết quả này',discardResult:'Tôi từ chối kết quả này',welcomeServer:'Bạn có thể chuyển đổi giữa máy chủ Trung Quốc và quốc tế ở góc trên bên phải.',welcomeClose:'Đã hiểu',timeSync:'Không thể cập nhật giờ mạng. Tiếp tục dùng giờ đã đồng bộ gần nhất.',timeError:'Không thể lấy giờ mạng. Vui lòng thử lại.',timeRetry:'Thử đồng bộ giờ mạng lại'},
+};
+for (const [code, labels] of Object.entries(preferenceAndClockUi)) {
+  Object.assign(messages[code], labels);
+}
+const networkClockLabels = {
+  'zh-CN':'网络 UTC 时间','zh-TW':'網路 UTC 時間',en:'Network UTC time',ar:'توقيت UTC عبر الشبكة',
+  fr:'Heure UTC réseau',de:'Netzwerkzeit in UTC',id:'Waktu UTC jaringan',it:'Ora UTC di rete',ja:'ネットワークUTC時刻',
+  ko:'네트워크 UTC 시간',ms:'Waktu UTC rangkaian',pl:'Sieciowy czas UTC',pt:'Horário UTC da rede',ru:'Сетевое время UTC',
+  es:'Hora UTC de la red',th:'เวลา UTC จากเครือข่าย',tr:'Ağ UTC saati',vi:'Giờ UTC qua mạng',
+};
+for (const [code, label] of Object.entries(networkClockLabels)) messages[code].clockEstimate = label;
+
 const gameActionLabels = {
   'zh-CN': ['建议保留','建议放弃','三个词条均已满品','三个词条均已满品，无需继续洗练。','计算芯片'],
   'zh-TW': ['建議保留','建議不儲存','三個詞條均已滿品','三個詞條均已滿品，無需繼續洗練。','運算晶片'],

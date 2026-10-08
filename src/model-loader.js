@@ -7,7 +7,7 @@ function epochMilliseconds(value) {
   return timestamp;
 }
 
-export function selectStage(profiles, region, now = Date.now()) {
+export function selectStage(profiles, region, now) {
   if (region !== 'cn' && region !== 'international') {
     throw new RangeError('服务器区域必须是 cn 或 international');
   }
@@ -18,11 +18,15 @@ export function selectStage(profiles, region, now = Date.now()) {
   const intervalMs = profile.intervalMs;
   const initialGroup = profile.initialGroup;
   const initialCap = profile.initialCap;
+  const refreshHourUtc = profile.refreshHourUtc;
   if (!Number.isFinite(openMs) || !Number.isInteger(intervalMs) || intervalMs <= 0
       || !Number.isInteger(initialGroup) || !Number.isInteger(initialCap)
-      || !Number.isInteger(profile.groupStep) || !Number.isInteger(profile.capStep)) {
+      || !Number.isInteger(profile.groupStep) || !Number.isInteger(profile.capStep)
+      || !Number.isInteger(refreshHourUtc) || refreshHourUtc < 0 || refreshHourUtc > 23) {
     throw new TypeError(`${region} 阶段配置字段无效`);
   }
+  const nextDailyRefreshAt = nextRefreshAt(nowMs, refreshHourUtc);
+  const gameDate = new Date(nowMs + (region === 'cn' ? 8 : 0) * 60 * 60 * 1000).toISOString().slice(0, 10);
   if (nowMs < openMs) {
     return {
       status: 'not_open',
@@ -32,7 +36,9 @@ export function selectStage(profiles, region, now = Date.now()) {
       cap: null,
       generation: null,
       promotionCount: null,
-      nextChangeAt: openMs,
+      gameDate,
+      nextDailyRefreshAt,
+      nextChangeAt: Math.min(openMs, nextDailyRefreshAt),
       version: profile.version,
       timezone: profile.timezone,
     };
@@ -49,10 +55,19 @@ export function selectStage(profiles, region, now = Date.now()) {
     cap,
     generation: (profile.initialGeneration ?? 2) + promotionCount,
     promotionCount,
-    nextChangeAt: openMs + (promotionCount + 1) * intervalMs,
+    gameDate,
+    nextDailyRefreshAt,
+    nextChangeAt: Math.min(openMs + (promotionCount + 1) * intervalMs, nextDailyRefreshAt),
     version: profile.version,
     timezone: profile.timezone,
   };
+}
+
+function nextRefreshAt(nowMs, refreshHourUtc) {
+  const dayMs = 86_400_000;
+  const boundaryInDayMs = refreshHourUtc * 3_600_000;
+  const dayStartMs = Math.floor((nowMs - boundaryInDayMs) / dayMs) * dayMs;
+  return dayStartMs + dayMs + boundaryInDayMs;
 }
 
 function validateRuntimeModels(models) {
@@ -89,7 +104,7 @@ export function createModelLoader({
     return modelsPromise;
   }
 
-  return async function loadModel(region, now = Date.now()) {
+  return async function loadModel(region, now) {
     const models = await loadModels();
     const stage = selectStage(models.profiles, region, now);
     if (stage.status !== 'supported') return { status: stage.status, region, stage };
