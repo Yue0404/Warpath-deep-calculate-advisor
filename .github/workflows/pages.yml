@@ -24,6 +24,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: 安装锁定依赖
+        run: npm ci
       - name: 运行测试
         run: npm test
       - name: 构建静态站点
