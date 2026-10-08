@@ -15,28 +15,77 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  package:
     runs-on: ubuntu-latest
     steps:
       - name: 取出仓库
         uses: actions/checkout@v7.0.1
-      - name: 设置 Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: 安装锁定依赖
-        run: npm ci
-      - name: 构建静态站点
-        run: npm run build
+      - name: 校验 Pages 运行文件并打包
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          required_files=(
+            index.html
+            styles.css
+            src/app.js
+            src/calculator.js
+            src/i18n.js
+            src/input.js
+            src/model-loader.js
+            src/network-time.js
+            src/preferences.js
+            src/probability-chart.js
+            src/probability-data.js
+            src/viewer.js
+            assets/deep-calculation-card.png
+            flags/LICENSE
+            flags/br.svg
+            flags/cn.svg
+            flags/de.svg
+            flags/es.svg
+            flags/fr.svg
+            flags/gb.svg
+            flags/id.svg
+            flags/it.svg
+            flags/jp.svg
+            flags/kr.svg
+            flags/my.svg
+            flags/pl.svg
+            flags/ru.svg
+            flags/sa.svg
+            flags/th.svg
+            flags/tr.svg
+            flags/tw.svg
+            flags/vn.svg
+            vendor/chart.umd.js
+            vendor/chartjs-LICENSE.md
+            vendor/kurkle-color-LICENSE.md
+            data/runtime_models.json
+          )
+
+          for file in "${required_files[@]}"; do
+            if [[ ! -s "$file" ]]; then
+              echo "缺少 Pages 运行文件：$file" >&2
+              exit 1
+            fi
+          done
+
+          staging="$RUNNER_TEMP/pages-site"
+          mkdir -p "$staging/data"
+          cp index.html styles.css "$staging/"
+          cp -R src assets flags vendor "$staging/"
+          cp data/runtime_models.json "$staging/data/runtime_models.json"
+          echo "path=$staging" >> "$GITHUB_OUTPUT"
       - name: 上传 Pages 构建产物
-        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v5
         with:
-          path: dist
+          path: ${{ steps.package.outputs.path }}
 
   deploy:
-    needs: build
-    if: github.event_name != 'pull_request'
+    needs: package
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     runs-on: ubuntu-latest
     permissions:
       pages: write

@@ -2,5 +2,8 @@ dist/
 node_modules/
 .codegraph/
 /tests/
-data/source/
-data/README.md
+/scripts/
+/package.json
+/package-lock.json
+/data/*
+!/data/runtime_models.json
