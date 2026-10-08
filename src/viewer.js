@@ -2,6 +2,7 @@
 export function renderRecommendation({ panel, title, unsupported, apply, nextRoll, decision, complete, translate }) {
   panel.hidden = !decision && !complete;
   panel.dataset.choice = complete ? 'complete' : decision?.choice ?? '';
+  panel.dataset.priority = decision?.choice === 'accept' || decision?.choice === 'discard' ? decision.choice : 'none';
   title.textContent = complete ? translate('complete') : decision ? translate(decision.choice) : '';
   unsupported.hidden = !decision || decision.supported;
   apply.hidden = !decision || complete;

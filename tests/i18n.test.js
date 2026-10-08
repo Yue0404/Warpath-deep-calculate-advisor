@@ -44,6 +44,7 @@ test('新增界面词条覆盖全部语言并正确插值', () => {
     'skillAttribute', 'globalAttribute', 'normalAttribute', 'delta', 'deltaLabel', 'unchanged',
     'lockWarning', 'continue', 'qualityRange', 'invalidChange', 'server', 'serverCn', 'serverInternational',
     'stageStatus', 'clockEstimate', 'stageNotOpen', 'stageUnsupported',
+    'acceptResult', 'discardResult', 'welcomeServer', 'welcomeClose', 'timeSync', 'timeError', 'timeRetry', 'compare',
   ];
   for (const { code } of languages) {
     for (const key of addedKeys) {
@@ -53,6 +54,7 @@ test('新增界面词条覆盖全部语言并正确插值', () => {
     assert.equal(translate(code, 'qualityRange', { cap: 11 }).includes('{cap}'), false, `${code}.qualityRange 未插值`);
     assert.equal(translate(code, 'stageStatus', { group: 'A', cap: 11 }).includes('{group}'), false, `${code}.stageStatus 未插值 group`);
     assert.equal(translate(code, 'stageStatus', { group: 'A', cap: 11 }).includes('{cap}'), false, `${code}.stageStatus 未插值 cap`);
+    assert.equal(translate(code, 'stageStatus', { group: 'A', cap: 11, gameDate: '2026-10-08' }).includes('{gameDate}'), false, `${code}.stageStatus 未插值 gameDate`);
     assert.equal(translate(code, 'stageUnsupported', { group: 'A' }).includes('{group}'), false, `${code}.stageUnsupported 未插值`);
   }
   assert.equal(messages['zh-CN'].skillAttribute, '技能伤害加深/抵抗');
@@ -65,6 +67,12 @@ test('新增界面词条覆盖全部语言并正确插值', () => {
   assert.equal(messages['zh-CN'].discard, '建议放弃');
   assert.equal(messages['zh-CN'].complete, '三个词条均已满品');
   assert.equal(messages['zh-CN'].server, '服务器');
+  assert.equal(messages['zh-CN'].acceptResult, '我接受本次结果');
+  assert.equal(messages['zh-CN'].discardResult, '我放弃本次结果');
+  assert.match(messages['zh-CN'].welcomeServer, /页面右上方/);
+  assert.equal(messages['zh-CN'].clockEstimate, '网络 UTC 时间');
+  assert.equal(messages['zh-CN'].compare, '计算');
+  assert.match(messages['zh-CN'].stageStatus, /游戏内容日期 \{gameDate\}/);
 });
 
 test('游戏词条名称以 canonical source IDs 为依据', () => {
