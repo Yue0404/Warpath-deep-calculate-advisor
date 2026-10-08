@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#202327">
+  <meta name="description" content="Warpath 深度计算器，比较三条词条的整组洗练结果，提供保留或放弃建议。">
+  <title>Warpath · 深度计算器</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./src/app.js"></script>
+</head>
+<body>
+  <main class="page">
+    <header class="site-header">
+      <div class="header-controls">
+        <div class="language">
+          <span class="language-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="9"></circle><path d="M3.5 12h17M12 3c2.3 2.4 3.5 5.4 3.5 9S14.3 18.6 12 21c-2.3-2.4-3.5-5.4-3.5-9S9.7 5.4 12 3Z"></path></svg>
+          </span>
+          <span class="sr-only" data-i18n="language">语言</span>
+          <span class="language-select-shell">
+            <button id="language" type="button" aria-expanded="false" aria-controls="language-options">
+              <img id="language-flag" src="./flags/cn.svg" alt="" aria-hidden="true">
+              <span id="language-name">简体中文</span>
+            </button>
+            <div id="language-options" popover="auto" aria-label="语言"></div>
+          </span>
+        </div>
+        <label id="server-control" class="server">
+          <span class="sr-only" data-i18n="server">服务器</span>
+          <select id="server"></select>
+        </label>
+        <p id="time-status" class="stage-status" role="status" hidden></p>
+      </div>
+      <div class="brand">
+        <h1 data-i18n="title">深度计算器</h1>
+        <div class="ornament" aria-hidden="true"><span></span><i></i><span></span></div>
+      </div>
+    </header>
+    <div id="load-status" role="status">正在加载模型…</div>
+    <button id="retry" type="button" hidden data-i18n="retry">重试</button>
+    <section id="workspace" class="workspace" aria-label="计算器">
+      <form id="calculator-form" class="editor" novalidate>
+        <fieldset id="inputs" disabled>
+          <div class="table-head"><span aria-hidden="true"></span><h2 data-i18n="current">当前品阶</h2><h2 data-i18n="delta">洗练增减</h2><h2 data-i18n="result">新品阶</h2></div>
+          <div id="quality-rows"></div>
+          <div class="form-actions">
+            <div id="chip-cost" class="chip-cost" aria-live="polite" hidden>
+              <img id="chip-cost-icon" src="./assets/deep-calculation-card.png" alt="" aria-hidden="true">
+              <span id="chip-cost-text"></span>
+            </div>
+            <button type="button" id="reset" class="text-button" data-i18n="reset">重置</button>
+            <button type="submit" class="primary" data-i18n="compare">计算</button>
+          </div>
+        </fieldset>
+        <p id="form-error" class="warning" role="alert" hidden></p>
+      </form>
+      <section id="recommendation" class="recommendation" aria-live="polite" aria-atomic="true" hidden>
+        <div class="decision-panel">
+          <h2 id="decision-title" class="decision-title"></h2>
+          <p id="unsupported" class="warning" hidden data-i18n="unsupported"></p>
+          <div class="result-actions"><button type="button" id="apply" hidden data-i18n="acceptResult">我接受本次结果</button><button type="button" id="next-roll" hidden data-i18n="discardResult">我放弃本次结果</button></div>
+        </div>
+      </section>
+    </section>
+    <button id="view-probabilities" class="probability-link" type="button" data-i18n="viewProbabilities" disabled>查看概率分布</button>
+    <aside class="notes"><p data-i18n="equalNote">默认三个词条等价；实际上根据玩家的兵卡配置，三个词条的价值并不完全相同。</p></aside>
+    <footer><div><p data-i18n="author">Warpath 钥钥 国际服 uid：35600096</p><small data-i18n="footer">玩家制作的计算工具，与游戏官方无关联。</small></div><a href="https://space.bilibili.com/30300043" target="_blank" rel="noopener noreferrer" data-i18n="bilibili">哔哩哔哩主页</a></footer>
+  </main>
+  <dialog id="lock-dialog" aria-labelledby="lock-warning">
+    <p id="lock-warning" data-i18n="lockWarning"></p>
+    <button type="button" id="lock-continue" class="primary" data-i18n="welcomeClose">我知道了</button>
+  </dialog>
+  <dialog id="server-welcome-dialog" aria-labelledby="welcome-server">
+    <p id="welcome-server" data-i18n="welcomeServer">首次使用国服配置。服务器可在页面右上角切换。</p>
+    <button type="button" id="server-welcome-close" class="primary" data-i18n="welcomeClose">我知道了</button>
+  </dialog>
+  <dialog id="probability-dialog" aria-labelledby="probability-title">
+    <h2 id="probability-title" data-i18n="probabilityTitle">概率分布</h2>
+    <div class="probability-chart-frame"><canvas id="probability-canvas"></canvas></div>
+    <details id="probability-data">
+      <summary data-i18n="probabilityTable">查看概率表</summary>
+      <div id="probability-table"></div>
+    </details>
+    <button type="button" id="probability-close" data-i18n="close">关闭</button>
+  </dialog>
+</body>
+</html>

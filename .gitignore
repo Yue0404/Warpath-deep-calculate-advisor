@@ -1,0 +1,9 @@
+dist/
+node_modules/
+.codegraph/
+/tests/
+/scripts/
+/package.json
+/package-lock.json
+/data/*
+!/data/runtime_models.json
