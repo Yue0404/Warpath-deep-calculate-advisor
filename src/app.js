@@ -35,23 +35,113 @@ let stageTimer = null;
 const maximumTimerDelay = 2147483647;
 let decision = null;
 let resultQualities = null;
-let current = [0, 0, 0];
+let current = ['', '', ''];
+let currentRaw = ['', '', ''];
 let deltas = ['', '', ''];
-let mode = '';
+const fieldErrors = { current: [null, null, null], delta: [null, null, null] };
 let selectedLockedIndex = null;
-let pendingMode = '';
+let pendingLockedIndex = null;
 let closingDialog = false;
 let returnFocusAfterLanguageClose = false;
 const t = (key, values) => translate(locale, key, values);
 const probabilityViewer = createProbabilityViewer({ translate: t });
-const lockedIndex = () => mode === 'two' ? selectedLockedIndex : null;
+const lockedIndex = () => selectedLockedIndex;
+const deltaWeightsFor = (rawCurrent) => {
+  const quality = parseQuality(rawCurrent, calculator.cap);
+  if (!quality.valid || quality.empty) return {};
+  return calculator.probabilities.rows[quality.value]?.delta_weights ?? {};
+};
 const resultAt = (index, rawCurrent = current[index], rawDelta = deltas[index]) => deriveResult(
-  rawCurrent, rawDelta, calculator.cap, lockedIndex() === index,
+  rawCurrent, rawDelta, calculator.cap, lockedIndex() === index, deltaWeightsFor(rawCurrent),
 );
 
 function showFormError(key, values) {
   $('form-error').textContent = t(key, values);
   $('form-error').hidden = false;
+}
+
+function positionQualityError(error) {
+  if (!error || error.hidden) return;
+  const input = $(error.dataset.inputId);
+  if (!input) return;
+  const inputRect = input.getBoundingClientRect();
+  const errorRect = error.getBoundingClientRect();
+  const margin = 12;
+  const left = Math.max(margin, Math.min(
+    inputRect.left + inputRect.width / 2 - errorRect.width / 2,
+    window.innerWidth - errorRect.width - margin,
+  ));
+  const above = inputRect.top - errorRect.height - 8;
+  const pointsDown = above >= 8;
+  const top = pointsDown ? above : inputRect.bottom + 8;
+  const arrowX = Math.max(10, Math.min(inputRect.left + inputRect.width / 2 - left, errorRect.width - 10));
+  error.style.left = `${left}px`;
+  error.style.top = `${top}px`;
+  error.style.setProperty('--arrow-x', `${arrowX}px`);
+  error.classList.toggle('quality-error-above', pointsDown);
+}
+
+function repositionQualityErrors() {
+  document.querySelectorAll('.quality-error:not([hidden])').forEach(positionQualityError);
+}
+
+function updateQualityError(kind, index) {
+  const issue = fieldErrors[kind][index];
+  const input = $(`${kind}-${index}`);
+  const error = $(`${kind}-error-${index}`);
+  if (!input || !error) return;
+  input.setAttribute('aria-invalid', String(Boolean(issue)));
+  input.closest('.quality-field')?.classList.toggle('has-error', Boolean(issue));
+  error.textContent = issue ? t(issue.key, issue.values) : '';
+  error.hidden = !issue || issue.show === false;
+  if (!error.hidden) requestAnimationFrame(() => positionQualityError(error));
+}
+
+function setQualityError(kind, index, issue) {
+  fieldErrors[kind][index] = issue;
+  updateQualityError(kind, index);
+}
+
+function showOnlyQualityError(kind = null, index = null) {
+  for (const field of ['current', 'delta']) {
+    for (let fieldIndex = 0; fieldIndex < 3; fieldIndex += 1) {
+      const issue = fieldErrors[field][fieldIndex];
+      if (!issue) continue;
+      const show = field === kind && fieldIndex === index;
+      if ((issue.show !== false) === show) continue;
+      issue.show = show;
+      updateQualityError(field, fieldIndex);
+    }
+  }
+}
+
+function clearQualityErrors(kind = null) {
+  for (const field of kind ? [kind] : ['current', 'delta']) {
+    for (let index = 0; index < 3; index += 1) setQualityError(field, index, null);
+  }
+}
+
+function makeQualityError(kind, index) {
+  const error = document.createElement('span');
+  error.id = `${kind}-error-${index}`;
+  error.className = 'quality-error';
+  error.dataset.inputId = `${kind}-${index}`;
+  error.setAttribute('role', 'alert');
+  error.hidden = true;
+  return error;
+}
+
+function renderAttributeLabel(label, text) {
+  if (!['zh-CN', 'zh-TW'].includes(locale)) {
+    label.textContent = text;
+    return;
+  }
+  const match = /^(.*)(加深\/抵抗)$/.exec(text);
+  if (!match) {
+    label.textContent = text;
+    return;
+  }
+  label.append(document.createTextNode(match[1]), document.createElement('br'), document.createTextNode(match[2]));
 }
 
 function renderLanguage() {
@@ -125,9 +215,10 @@ function makeCurrentInput(index) {
   input.autocomplete = 'off';
   input.setAttribute('aria-label', t('qualityLabel', { section: t('current'), n: index + 1 }));
   input.title = t('qualityRange', { cap: calculator.cap });
-  input.value = current[index] ?? '';
-  const parsed = parseQuality(input.value, calculator.cap);
-  input.setAttribute('aria-invalid', String(!parsed.valid));
+  input.placeholder = t('enterQuality');
+  input.value = currentRaw[index] ?? current[index] ?? '';
+  input.setAttribute('aria-describedby', `current-error-${index}`);
+  input.setAttribute('aria-invalid', String(Boolean(fieldErrors.current[index])));
   return input;
 }
 
@@ -135,10 +226,13 @@ function makeDeltaSelect(index) {
   const select = document.createElement('select');
   select.id = `delta-${index}`;
   select.setAttribute('aria-label', t('deltaLabel', { n: index + 1 }));
+  select.setAttribute('aria-describedby', `delta-error-${index}`);
+  select.setAttribute('aria-invalid', String(Boolean(fieldErrors.delta[index])));
   const locked = lockedIndex() === index;
   const quality = parseQuality(current[index], calculator.cap);
   if (!locked) select.add(new Option('—', ''));
-  for (const delta of quality.valid && !quality.empty ? availableDeltas(quality.value, calculator.cap, locked) : []) {
+  for (const delta of quality.valid && !quality.empty
+    ? availableDeltas(quality.value, calculator.cap, locked, deltaWeightsFor(quality.value)) : []) {
     const label = delta === 0 ? t('unchanged') : `${delta > 0 ? '+' : ''}${delta}`;
     select.add(new Option(label, String(delta)));
   }
@@ -161,7 +255,9 @@ function updateDerivedRow(index) {
   const row = $('quality-rows').querySelector(`#current-${index}`)?.closest('.quality-row');
   if (!row) return;
   const deltaField = row.querySelector('.delta-field');
-  deltaField.replaceChildren(makeDeltaSelect(index));
+  const error = deltaField.querySelector('.quality-error');
+  deltaField.replaceChildren(makeDeltaSelect(index), ...(error ? [error] : []));
+  updateQualityError('delta', index);
   row.querySelector('.result-field').replaceChildren(makeResult(index));
 }
 
@@ -175,9 +271,9 @@ function renderInputs() {
     name.className = 'attribute-name';
     const label = document.createElement('span');
     label.className = 'attribute-label';
-    label.textContent = t(names[index]);
+    renderAttributeLabel(label, t(names[index]));
     name.append(label);
-    if (mode === 'two' && (selectedLockedIndex === null || selectedLockedIndex === index)) {
+    if (selectedLockedIndex === null || selectedLockedIndex === index) {
       const toggle = document.createElement('button');
       const isLocked = selectedLockedIndex === index;
       toggle.type = 'button';
@@ -197,12 +293,12 @@ function renderInputs() {
     const currentInput = makeCurrentInput(index);
     const currentUnit = document.createElement('span');
     currentUnit.textContent = t('quality');
-    currentField.append(currentInput, currentUnit);
+    currentField.append(currentInput, currentUnit, makeQualityError('current', index));
 
     const deltaField = document.createElement('div');
     deltaField.className = 'quality-field delta-field';
     deltaField.dataset.label = t('delta');
-    deltaField.append(makeDeltaSelect(index));
+    deltaField.append(makeDeltaSelect(index), makeQualityError('delta', index));
 
     const resultField = document.createElement('div');
     resultField.className = 'quality-field result-field';
@@ -210,14 +306,20 @@ function renderInputs() {
     resultField.append(makeResult(index));
     row.append(name, currentField, deltaField, resultField);
     $('quality-rows').append(row);
+    updateQualityError('current', index);
+    updateQualityError('delta', index);
   }
-  $('mode').replaceChildren(
-    new Option(t('all', { cost: calculator.ordinaryCost }), ''),
-    new Option(t('two', { cost: calculator.lockedCost }), 'two'),
-  );
-  $('mode').value = mode;
-  const lockHint = $('lock-selection-hint');
-  if (lockHint) lockHint.hidden = mode !== 'two' || selectedLockedIndex !== null;
+  renderChipCost();
+}
+
+function renderChipCost() {
+  const host = $('chip-cost');
+  const text = $('chip-cost-text');
+  if (!host || !text) return;
+  host.hidden = !calculator;
+  text.textContent = calculator
+    ? t('chipCost', { cost: lockedIndex() === null ? calculator.ordinaryCost : calculator.lockedCost })
+    : '';
 }
 
 function completeState() {
@@ -303,10 +405,13 @@ function updateRecommendation() {
 
 function resetQualityState() {
   if ($('lock-dialog')?.open) closeLockDialog(false);
-  current = [0, 0, 0];
+  current = ['', '', ''];
+  currentRaw = ['', '', ''];
   deltas = ['', '', ''];
-  mode = '';
+  clearQualityErrors();
   selectedLockedIndex = null;
+  pendingLockedIndex = null;
+  renderChipCost();
   decision = null;
   resultQualities = null;
   $('form-error').hidden = true;
@@ -323,6 +428,7 @@ function invalidate() {
 
 function clearResults() {
   deltas = ['', '', ''];
+  clearQualityErrors('delta');
   const index = lockedIndex();
   if (index !== null) deltas[index] = '0';
   invalidate();
@@ -353,7 +459,7 @@ async function checkStageBoundary() {
     resultQualities = null;
     $('inputs').disabled = true;
     $('quality-rows').replaceChildren();
-    $('mode').replaceChildren();
+    renderChipCost();
     $('load-status').textContent = t('timeError');
     $('load-status').hidden = false;
     $('retry').hidden = false;
@@ -382,6 +488,7 @@ async function loadCurrentModel() {
   $('load-status').hidden = false;
   $('load-status').textContent = t('loading');
   $('retry').hidden = true;
+  renderChipCost();
   $('form-error').hidden = true;
   if (!calculator) {
     modelState = null;
@@ -389,7 +496,7 @@ async function loadCurrentModel() {
     decision = null;
     resultQualities = null;
     $('quality-rows').replaceChildren();
-    $('mode').replaceChildren();
+    renderChipCost();
     updateRecommendation();
   }
   let boundaryMissed = false;
@@ -420,7 +527,7 @@ async function loadCurrentModel() {
       resultQualities = null;
       $('inputs').disabled = true;
       $('quality-rows').replaceChildren();
-      $('mode').replaceChildren();
+      renderChipCost();
       decision = null;
     }
     renderStageStatus();
@@ -436,7 +543,7 @@ async function loadCurrentModel() {
     resultQualities = null;
     $('inputs').disabled = true;
     $('quality-rows').replaceChildren();
-    $('mode').replaceChildren();
+    renderChipCost();
     $('load-status').textContent = networkClock.isReady() ? t('loadError') : t('timeError');
     $('retry').hidden = false;
     renderTimeStatus();
@@ -456,6 +563,7 @@ function selectRegion() {
   storage.set('warpath-server', region);
   resetQualityState();
   calculator = null;
+  renderChipCost();
   probabilityViewer.setModel(null);
   modelState = null;
   $('inputs').disabled = true;
@@ -465,6 +573,8 @@ function selectRegion() {
 function acceptWashResult() {
   if (!decision || !resultQualities) return;
   current = [...resultQualities];
+  currentRaw = current.map(String);
+  clearQualityErrors('current');
   clearResults();
 }
 
@@ -482,7 +592,6 @@ function closeLockDialog(applyPending) {
   const dialog = $('lock-dialog');
   if (!dialog?.open || closingDialog) return;
   closingDialog = true;
-  if (applyPending) mode = pendingMode;
   const wasVisible = dialog.classList.contains('is-visible');
   dialog.classList.remove('is-visible');
   let fallbackTimer;
@@ -495,10 +604,13 @@ function closeLockDialog(applyPending) {
     if (dialog.open) dialog.close();
     closingDialog = false;
     if (applyPending) {
-      if (pendingMode === 'two') selectedLockedIndex = null;
+      selectedLockedIndex = pendingLockedIndex;
+      pendingLockedIndex = null;
       clearResults();
+      if (selectedLockedIndex !== null) {
+        $('quality-rows').querySelector(`button.lock-toggle[data-lock-index="${selectedLockedIndex}"]`)?.focus();
+      }
     }
-    $('mode').focus();
   };
   const onTransitionEnd = (event) => {
     if (event.target === dialog && event.propertyName === 'opacity') finish();
@@ -515,10 +627,10 @@ function closeLockDialog(applyPending) {
   else fallbackTimer = setTimeout(finish, Math.min(500, transitionMs + 50));
 }
 
-function requestLock(nextMode) {
+function requestLock(index) {
   const dialog = $('lock-dialog');
   if (!dialog || closingDialog) return;
-  pendingMode = nextMode;
+  pendingLockedIndex = index;
   $('lock-warning').textContent = t('lockWarning');
   if (!dialog.open) dialog.showModal();
   requestAnimationFrame(() => {
@@ -553,64 +665,70 @@ document.addEventListener('focusin', (event) => {
   }
 });
 $('server').addEventListener('change', selectRegion);
+$('quality-rows').addEventListener('focusin', (event) => {
+  const control = event.target.closest('input[id^="current-"], select[id^="delta-"]');
+  if (!control) {
+    showOnlyQualityError();
+    return;
+  }
+  const kind = control.id.startsWith('current-') ? 'current' : 'delta';
+  const index = Number(control.id.slice(kind.length + 1));
+  showOnlyQualityError(kind, index);
+});
 $('quality-rows').addEventListener('input', (event) => {
   const input = event.target.closest('input[id^="current-"]');
   if (!input || !calculator) return;
   const index = Number(input.id.slice('current-'.length));
   if (!Number.isInteger(index) || index < 0 || index > 2) return;
+  showOnlyQualityError('current', index);
+  currentRaw[index] = input.value;
   const parsed = parseQuality(input.value, calculator.cap);
-  input.setAttribute('aria-invalid', String(!parsed.valid));
-  current[index] = parsed.valid ? parsed.value : null;
+  current[index] = parsed.valid ? (parsed.empty ? '' : parsed.value) : input.value;
   deltas = ['', '', ''];
+  clearQualityErrors('delta');
   const locked = lockedIndex();
   if (locked !== null) deltas[locked] = '0';
+  setQualityError('current', index, !parsed.valid
+    ? { key: 'qualityRange', values: { cap: calculator.cap } } : null);
   invalidate();
   for (let rowIndex = 0; rowIndex < 3; rowIndex++) updateDerivedRow(rowIndex);
-  if (!parsed.valid) showFormError('qualityRange', { cap: calculator.cap });
 });
 $('quality-rows').addEventListener('change', (event) => {
   const select = event.target.closest('select[id^="delta-"]');
   if (!select || !calculator) return;
   const index = Number(select.id.slice('delta-'.length));
   if (!Number.isInteger(index) || index < 0 || index > 2) return;
-  const derived = deriveResult(current[index], select.value, calculator.cap, lockedIndex() === index);
+  showOnlyQualityError('delta', index);
+  const derived = deriveResult(current[index], select.value, calculator.cap, lockedIndex() === index,
+    deltaWeightsFor(current[index]));
   if (!derived.valid) {
     deltas[index] = '';
+    setQualityError('delta', index, { key: 'invalidChange' });
     updateDerivedRow(index);
-    showFormError('invalidChange');
     return;
   }
   deltas[index] = select.value;
+  setQualityError('delta', index, null);
   invalidate();
   updateDerivedRow(index);
 });
-$('mode').addEventListener('change', (event) => {
-  const nextMode = event.target.value;
-  if (nextMode !== '' && nextMode !== 'two') {
-    event.target.value = mode;
-    showFormError('invalidChange');
-    return;
-  }
-  if (nextMode === mode) return;
-  if (nextMode === 'two') requestLock(nextMode);
-  else {
-    mode = '';
-    selectedLockedIndex = null;
-    clearResults();
-  }
-});
 $('quality-rows').addEventListener('click', (event) => {
   const toggle = event.target.closest('button.lock-toggle');
-  if (!toggle || mode !== 'two') return;
+  if (!toggle) return;
   const index = Number(toggle.dataset.lockIndex);
   if (!Number.isInteger(index) || index < 0 || index > 2) return;
-  selectedLockedIndex = selectedLockedIndex === index ? null : index;
-  clearResults();
-  $('quality-rows').querySelector(`button.lock-toggle[data-lock-index="${index}"]`)?.focus();
+  if (selectedLockedIndex === index) {
+    selectedLockedIndex = null;
+    clearResults();
+    $('quality-rows').querySelector(`button.lock-toggle[data-lock-index="${index}"]`)?.focus();
+    return;
+  }
+  if (selectedLockedIndex !== null) return;
+  requestLock(index);
 });
 $('lock-continue').addEventListener('click', () => closeLockDialog(true));
 $('lock-dialog').addEventListener('cancel', (event) => {
-  // 按 ESC 时继续确认流程，避免隐藏的对话框留下未确认的选择。
+  // 按 ESC 时继续确认流程，确保选中的锁定词条得到应用。
   event.preventDefault();
   closeLockDialog(true);
 });
@@ -621,30 +739,35 @@ $('server-welcome-dialog').addEventListener('close', () => {
 $('calculator-form').addEventListener('submit', (event) => {
   event.preventDefault();
   if (!calculator || $('inputs').disabled) return;
-  if (mode === 'two' && selectedLockedIndex === null) {
-    const lockHint = $('lock-selection-hint');
-    if (lockHint) lockHint.hidden = false;
-    $('quality-rows').querySelector('button.lock-toggle')?.focus();
-    return;
-  }
+  $('form-error').hidden = true;
+  clearQualityErrors();
   const inputs = [0, 1, 2].map((index) => $(`current-${index}`));
+  currentRaw = inputs.map((input) => input.value);
   const parsed = inputs.map((input) => parseQuality(input.value, calculator.cap));
-  if (parsed.some((entry) => !entry.valid)) {
-    showFormError('qualityRange', { cap: calculator.cap });
-    inputs[parsed.findIndex((entry) => !entry.valid)]?.focus();
-    return;
-  }
-  if (parsed.some((entry) => entry.empty)) {
-    showFormError('qualityRange', { cap: calculator.cap });
-    inputs[parsed.findIndex((entry) => entry.empty)]?.focus();
+  const invalidIndex = parsed.findIndex((entry) => !entry.valid || entry.empty);
+  if (invalidIndex !== -1) {
+    parsed.forEach((entry, index) => {
+      if (!entry.valid || entry.empty) {
+        setQualityError('current', index, {
+          key: 'qualityRange', values: { cap: calculator.cap }, show: index === invalidIndex,
+        });
+      }
+    });
+    inputs[invalidIndex]?.focus();
     return;
   }
   current = parsed.map(({ value }) => value);
+  currentRaw = inputs.map((input) => input.value);
   if (completeState()) { decision = null; resultQualities = null; updateRecommendation(); return; }
   const rawDeltas = [0, 1, 2].map((index) => lockedIndex() === index ? '0' : $(`delta-${index}`)?.value ?? '');
-  const results = rawDeltas.map((delta, index) => deriveResult(current[index], delta, calculator.cap, lockedIndex() === index));
-  if (results.some((result) => !result.valid)) {
-    showFormError('invalidChange');
+  const results = rawDeltas.map((delta, index) => deriveResult(current[index], delta, calculator.cap,
+    lockedIndex() === index, deltaWeightsFor(current[index])));
+  const invalidDeltaIndex = results.findIndex((result) => !result.valid);
+  if (invalidDeltaIndex !== -1) {
+    results.forEach((result, index) => {
+      if (!result.valid) setQualityError('delta', index, { key: 'invalidChange', show: index === invalidDeltaIndex });
+    });
+    $(`delta-${invalidDeltaIndex}`)?.focus();
     return;
   }
   deltas = rawDeltas;
@@ -660,14 +783,18 @@ $('calculator-form').addEventListener('submit', (event) => {
 });
 $('reset').addEventListener('click', () => {
   if ($('lock-dialog').open) closeLockDialog(false);
-  current = [0, 0, 0];
-  mode = '';
+  current = ['', '', ''];
+  currentRaw = ['', '', ''];
   selectedLockedIndex = null;
+  pendingLockedIndex = null;
+  clearQualityErrors();
   clearResults();
 });
 $('apply').addEventListener('click', acceptWashResult);
 $('next-roll').addEventListener('click', discardWashResult);
 $('retry').addEventListener('click', loadCurrentModel);
+window.addEventListener('resize', repositionQualityErrors);
+window.addEventListener('scroll', repositionQualityErrors, true);
 window.addEventListener('focus', checkStageBoundary);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') checkStageBoundary();

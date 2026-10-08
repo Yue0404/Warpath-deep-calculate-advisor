@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { availableDeltas, deriveResult, parseQuality } from '../src/input.js';
 
 test('品阶输入允许编辑空值，拒绝负数、小数、指数和粘贴的非整数文本', () => {
@@ -31,4 +32,19 @@ test('锁定项只能取变化量 0；重新计算始终使用当前输入', () 
   assert.equal(deriveResult('3', '1', 7, true).valid, false);
   assert.deepEqual(deriveResult('4', '1', 7), { valid: true, value: 5 });
   assert.deepEqual(deriveResult('2', '1', 7), { valid: true, value: 3 });
+});
+
+test('实际组 40 概率行会隐藏零权重变化，锁定的 0 不受抽取概率影响', async () => {
+  const probabilities = JSON.parse(await readFile(new URL('../data/probabilities.json', import.meta.url), 'utf8'));
+  const cap = probabilities.source.current_cap;
+  const zeroQuality = probabilities.rows.find(({ quality_index }) => quality_index === 0).delta_weights;
+  const firstQuality = probabilities.rows.find(({ quality_index }) => quality_index === 1).delta_weights;
+
+  assert.deepEqual(availableDeltas(0, cap, false, zeroQuality), [1]);
+  assert.deepEqual(availableDeltas(1, cap, false, firstQuality), [0, 1, 2]);
+  assert.equal(deriveResult('0', '0', cap, false, zeroQuality).valid, false);
+  assert.deepEqual(deriveResult('0', '1', cap, false, zeroQuality), { valid: true, value: 1 });
+  assert.deepEqual(availableDeltas(0, cap, true, zeroQuality), [0]);
+  assert.deepEqual(deriveResult('0', '0', cap, true, zeroQuality), { valid: true, value: 0 });
+  assert.equal(deriveResult('1', '-1', cap, false, firstQuality).valid, false);
 });

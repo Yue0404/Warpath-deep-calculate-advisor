@@ -10,19 +10,20 @@ export function parseQuality(raw, cap) {
   return { valid: true, empty: false, value: quality };
 }
 
-/** 返回不会让结果越过品阶边界的变化量。 */
-export function availableDeltas(current, cap, locked = false) {
+/** 返回处于品阶范围内且概率权重大于零的变化量。 */
+export function availableDeltas(current, cap, locked = false, deltaWeights = null) {
   if (locked) return [0];
-  return [-2, -1, 0, 1, 2].filter((delta) => current + delta >= 0 && current + delta <= cap);
+  return [-2, -1, 0, 1, 2].filter((delta) => current + delta >= 0 && current + delta <= cap
+    && (deltaWeights === null || deltaWeights === undefined || deltaWeights[String(delta)] > 0));
 }
 
-/** 从当前品阶和变化量推导结果，拒绝越界、非法及锁定项变化。 */
-export function deriveResult(rawCurrent, rawDelta, cap, locked = false) {
+/** 从当前品阶和变化量推导结果，拒绝越界、零概率及锁定项变化。 */
+export function deriveResult(rawCurrent, rawDelta, cap, locked = false, deltaWeights = null) {
   const parsed = parseQuality(rawCurrent, cap);
   if (!parsed.valid || parsed.empty) return { valid: false, value: null };
   if (!['-2', '-1', '0', '1', '2'].includes(String(rawDelta))) return { valid: false, value: null };
   const delta = Number(rawDelta);
-  if ((locked && delta !== 0) || !availableDeltas(parsed.value, cap).includes(delta)) {
+  if ((locked && delta !== 0) || !availableDeltas(parsed.value, cap, locked, deltaWeights).includes(delta)) {
     return { valid: false, value: null };
   }
   return { valid: true, value: parsed.value + delta };

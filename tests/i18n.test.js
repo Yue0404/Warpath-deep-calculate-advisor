@@ -41,7 +41,7 @@ test('18种语言均提供旗帜代码且语言名称保持原文', () => {
 
 test('新增界面词条覆盖全部语言并正确插值', () => {
   const addedKeys = [
-    'skillAttribute', 'globalAttribute', 'normalAttribute', 'delta', 'deltaLabel', 'unchanged',
+    'enterQuality', 'chipCost', 'skillAttribute', 'globalAttribute', 'normalAttribute', 'delta', 'deltaLabel', 'unchanged',
     'lockWarning', 'continue', 'qualityRange', 'invalidChange', 'server', 'serverCn', 'serverInternational',
     'stageStatus', 'clockEstimate', 'stageNotOpen', 'stageUnsupported',
     'acceptResult', 'discardResult', 'welcomeServer', 'welcomeClose', 'timeSync', 'timeError', 'timeRetry', 'compare',
@@ -55,6 +55,7 @@ test('新增界面词条覆盖全部语言并正确插值', () => {
       assert.ok(messages[code][key]?.trim(), `${code}.${key} 缺失`);
     }
     assert.equal(translate(code, 'deltaLabel', { n: 2 }).includes('{n}'), false, `${code}.deltaLabel 未插值`);
+    assert.equal(translate(code, 'chipCost', { cost: 20 }).includes('{cost}'), false, `${code}.chipCost 未插值`);
     assert.equal(translate(code, 'qualityRange', { cap: 11 }).includes('{cap}'), false, `${code}.qualityRange 未插值`);
     assert.equal(translate(code, 'stageStatus', { group: 'A', cap: 11 }).includes('{group}'), false, `${code}.stageStatus 未插值 group`);
     assert.equal(translate(code, 'stageStatus', { group: 'A', cap: 11 }).includes('{cap}'), false, `${code}.stageStatus 未插值 cap`);
@@ -72,6 +73,8 @@ test('新增界面词条覆盖全部语言并正确插值', () => {
     }
   }
   assert.equal(messages['zh-CN'].two, '洗练两个词条 · {cost} 张');
+  assert.equal(messages['zh-CN'].enterQuality, '请输入');
+  assert.equal(messages['zh-TW'].enterQuality, '請輸入');
   assert.equal(messages['zh-CN'].chooseLock, '请点击小锁，选择你在游戏中锁定的词条。');
   assert.equal(messages['zh-CN'].lockAttribute, '锁定词条 {n}');
   assert.equal(messages['zh-CN'].unlockAttribute, '解锁词条 {n}');
