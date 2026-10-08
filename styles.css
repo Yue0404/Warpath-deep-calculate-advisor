@@ -7,6 +7,8 @@
   --muted: #a9bdcb;
   --line: #46515b;
   --warning: #e9c49b;
+  --accept: #80d6a4;
+  --discard: #f28e96;
   font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
   color: var(--text);
   background: var(--background);
@@ -18,13 +20,13 @@
 }
 
 body {
-  min-width: 320px;
   margin: 0;
   background: var(--background);
 }
 
 button,
-select {
+select,
+input {
   color: inherit;
   font: inherit;
 }
@@ -56,6 +58,7 @@ fieldset:disabled {
 
 button:focus-visible,
 select:focus-visible,
+input:focus-visible,
 summary:focus-visible,
 a:focus-visible {
   outline: 3px solid var(--accent);
@@ -85,18 +88,99 @@ a:hover {
   margin-bottom: 24px;
 }
 
-.language {
+.header-controls {
+  display: grid;
+  grid-template-columns: max-content max-content;
   align-self: flex-end;
+  align-items: center;
+  gap: 8px 12px;
   max-width: 100%;
 }
 
-.language select {
-  width: 180px;
+.language {
+  display: flex;
+  align-items: center;
+  align-self: center;
+  gap: 8px;
   max-width: 100%;
+}
+
+.language-icon {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  color: var(--muted);
+  place-items: center;
+}
+
+.language-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.language-select-shell {
+  position: relative;
+  display: block;
+  width: 180px;
+  max-width: calc(100vw - 112px);
+  flex: none;
+}
+
+.language select {
+  display: block;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  padding-inline-start: 42px;
+  font-size: 14px;
+  text-overflow: ellipsis;
+}
+
+#language-flag {
+  position: absolute;
+  inset-inline-start: 10px;
+  top: 50%;
+  z-index: 1;
+  display: block;
+  width: 22px;
+  height: 17px;
+  border: 1px solid #64717a;
+  border-radius: 2px;
+  object-fit: cover;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.server {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.server select {
+  width: 180px;
+  min-width: 0;
   min-height: 36px;
   padding: 6px 10px;
   font-size: 14px;
   text-overflow: ellipsis;
+}
+
+.stage-status {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: end;
+  overflow-wrap: anywhere;
 }
 
 .brand {
@@ -119,16 +203,11 @@ html[lang^="zh"] h1 {
   letter-spacing: .18em;
 }
 
-.intro,
-#goal {
+.intro {
   margin: 4px 0;
   font-size: 16px;
   line-height: 1.55;
   overflow-wrap: anywhere;
-}
-
-#goal {
-  color: var(--muted);
 }
 
 .ornament {
@@ -203,14 +282,6 @@ html[lang^="zh"] h1 {
   background: var(--accent);
 }
 
-.result-heading {
-  margin-bottom: 12px;
-}
-
-#decision-title {
-  overflow-wrap: anywhere;
-}
-
 .editor fieldset {
   min-width: 0;
   margin: 0;
@@ -223,7 +294,7 @@ html[lang^="zh"] h1 {
 .table-head,
 .quality-row {
   display: grid;
-  grid-template-columns: minmax(76px, .72fr) minmax(0, 1.25fr) minmax(0, 1.25fr);
+  grid-template-columns: minmax(100px, .85fr) repeat(3, minmax(0, 1fr));
   align-items: center;
   gap: 12px;
   padding-inline: 16px;
@@ -263,41 +334,73 @@ html[lang^="zh"] h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 3px;
+  width: 100%;
   min-width: 0;
+  height: 46px;
   min-height: 46px;
   border: 1px solid #63737e;
   border-radius: 7px;
-  padding-inline: 10px;
+  padding: 7px 10px;
   background: #24292e;
+  text-align: center;
 }
 
-.quality-field:focus-within {
+.quality-field:focus-within,
+.quality-field:focus {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
 }
 
-.quality-field select {
+.quality-field input,
+.quality-field select,
+.quality-field output {
+  display: block;
   width: 100%;
   min-width: 0;
-  min-height: 40px;
+  min-height: 30px;
   border: 0;
   border-radius: 0;
-  padding: 5px 2px;
+  padding: 3px 2px;
   background: transparent;
+  color: inherit;
+  font: inherit;
   font-size: 18px;
   font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  text-align: center;
   direction: ltr;
 }
 
+.quality-field output {
+  overflow-wrap: anywhere;
+}
+
+.quality-field > input {
+  width: auto;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.quality-field > span {
+  flex: none;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.quality-field input:focus-visible,
 .quality-field select:focus-visible {
   outline: 0;
 }
 
-.quality-field span {
-  flex: none;
-  font-size: 15px;
-  color: var(--text);
+.quality-field:is(input, select, output) {
+  min-height: 46px;
+  padding: 7px 10px;
+}
+
+.quality-field:is(input, select, output):focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .form-actions {
@@ -396,81 +499,50 @@ html[lang^="zh"] h1 {
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: 7px;
+  padding: 16px 18px;
   background: var(--panel);
 }
 
-#decision-text {
+.decision-title {
   margin: 0;
-  padding: 15px 18px;
-  font-size: 15px;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
-}
-
-.metrics {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  margin: 0;
-  border-top: 1px solid var(--line);
-}
-
-.metrics > div {
-  min-width: 0;
-  padding: 16px 18px 14px;
-  text-align: center;
-}
-
-.metrics > div + div {
-  border-inline-start: 1px solid var(--line);
-}
-
-.metrics dt {
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-
-.metrics dd {
-  margin: 8px 0 0;
-  font-size: 28px;
-  line-height: 1.3;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-
-.metric-unit {
-  margin-inline-start: 6px;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-#difference,
-#unsupported,
-#locked-note {
-  margin: 0;
-  padding: 0 18px 12px;
-  overflow-wrap: anywhere;
-}
-
-#difference {
   color: var(--accent);
-  font-size: 14px;
-  font-weight: 650;
+  font-size: 20px;
+  line-height: 1.45;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
-.caption {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.6;
+#recommendation[data-choice="accept"] .decision-panel {
+  border-color: color-mix(in srgb, var(--accept) 64%, var(--line));
+}
+
+#recommendation[data-choice="accept"] .decision-title {
+  color: var(--accept);
+}
+
+#recommendation[data-choice="discard"] .decision-panel {
+  border-color: color-mix(in srgb, var(--discard) 64%, var(--line));
+}
+
+#recommendation[data-choice="discard"] .decision-title {
+  color: var(--discard);
+}
+
+#recommendation[data-choice="indifferent"] .decision-title,
+#recommendation[data-choice="complete"] .decision-title {
+  color: var(--accent);
+}
+
+.decision-panel #unsupported {
+  margin: 10px 0 0;
+  padding: 0;
 }
 
 .result-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 0 18px 16px;
+  margin-top: 12px;
 }
 
 .result-actions button {
@@ -488,36 +560,6 @@ html[lang^="zh"] h1 {
 
 .notes p {
   margin: 6px 0;
-}
-
-.method {
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--panel);
-}
-
-.method summary {
-  padding: 15px 18px;
-  cursor: pointer;
-  font-size: 15px;
-  font-weight: 650;
-  overflow-wrap: anywhere;
-}
-
-summary #version {
-  float: inline-end;
-  margin-inline-start: 12px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 400;
-}
-
-.method-body {
-  padding: 0 18px 18px;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.7;
-  overflow-wrap: anywhere;
 }
 
 footer {
@@ -556,6 +598,45 @@ footer a {
   white-space: nowrap;
 }
 
+dialog#lock-dialog {
+  width: min(480px, calc(100% - 32px));
+  max-width: 100%;
+  margin: auto;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 22px;
+  background: var(--panel);
+  color: var(--text);
+  opacity: 0;
+  transform: translateY(8px) scale(.98);
+  transition: opacity .2s ease, transform .2s ease;
+}
+
+dialog#lock-dialog.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+dialog#lock-dialog::backdrop {
+  background: rgb(0 0 0 / 0%);
+  transition: background-color .2s ease;
+}
+
+dialog#lock-dialog.is-visible::backdrop {
+  background: rgb(0 0 0 / 58%);
+}
+
+#lock-warning {
+  margin: 0 0 20px;
+  font-size: 16px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+#lock-continue {
+  min-width: 112px;
+}
+
 [hidden] {
   display: none !important;
 }
@@ -574,8 +655,24 @@ select:disabled {
     margin-bottom: 20px;
   }
 
+  .header-controls {
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
   .language select {
-    width: 170px;
+    font-size: 13px;
+  }
+
+  .language-select-shell {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    flex: 1;
+  }
+
+  .server select {
+    width: 100%;
     font-size: 13px;
   }
 
@@ -592,8 +689,7 @@ select:disabled {
     letter-spacing: .16em;
   }
 
-  .intro,
-  #goal {
+  .intro {
     font-size: 14px;
   }
 
@@ -614,13 +710,17 @@ select:disabled {
 
   .table-head,
   .quality-row {
-    grid-template-columns: minmax(54px, .68fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
     padding-inline: 8px;
   }
 
   .table-head {
-    min-height: 46px;
+    min-height: 48px;
+  }
+
+  .table-head > span {
+    display: none;
   }
 
   .table-head h2 {
@@ -628,27 +728,33 @@ select:disabled {
   }
 
   .quality-row {
-    min-height: 62px;
+    min-height: 90px;
+    padding-block: 8px;
   }
 
   .attribute-name {
+    grid-column: 1 / -1;
     padding-inline-start: 2px;
     font-size: 13px;
   }
 
   .quality-field {
-    gap: 3px;
+    height: 42px;
     min-height: 42px;
-    padding-inline: 5px;
+    padding: 5px 4px;
   }
 
-  .quality-field select {
-    min-height: 36px;
+  .quality-field input,
+  .quality-field select,
+  .quality-field output {
+    min-height: 30px;
     font-size: 16px;
   }
 
-  .quality-field span {
-    font-size: 12px;
+  .quality-field:is(input, select, output) {
+    height: 42px;
+    min-height: 42px;
+    padding: 5px 4px;
   }
 
   .form-actions {
@@ -667,31 +773,16 @@ select:disabled {
     font-size: 13px;
   }
 
-  #decision-text {
-    padding: 12px 14px;
-    font-size: 14px;
+  .decision-panel {
+    padding: 14px;
   }
 
-  .metrics > div {
-    padding: 13px 10px 12px;
+  .decision-title {
+    font-size: 18px;
   }
 
-  .metrics dt {
-    font-size: 12px;
-  }
-
-  .metrics dd {
-    font-size: 24px;
-  }
-
-  #difference,
-  #unsupported,
-  #locked-note {
-    padding-inline: 14px;
-  }
-
-  .result-actions {
-    padding: 0 14px 13px;
+  .result-actions button {
+    flex-basis: 150px;
   }
 
   .notes {
@@ -699,25 +790,13 @@ select:disabled {
     font-size: 12px;
   }
 
-  .method summary {
-    padding: 13px 14px;
-    font-size: 14px;
-  }
-
-  summary #version {
-    float: none;
-    display: block;
-    margin: 5px 0 0;
-    font-size: 11px;
-  }
-
-  .method-body {
-    padding: 0 14px 14px;
-  }
-
   footer {
     margin-top: 16px;
     padding-top: 12px;
+  }
+
+  dialog#lock-dialog {
+    padding: 18px;
   }
 }
 
@@ -728,17 +807,16 @@ select:disabled {
 
   .table-head,
   .quality-row {
-    grid-template-columns: minmax(48px, .62fr) minmax(0, 1fr) minmax(0, 1fr);
     gap: 4px;
     padding-inline: 6px;
   }
 
-  .attribute-name {
-    font-size: 12px;
+  .table-head h2 {
+    font-size: 11px;
   }
 
-  .quality-field {
-    padding-inline: 4px;
+  .attribute-name {
+    font-size: 12px;
   }
 
   .form-actions {
@@ -750,9 +828,12 @@ select:disabled {
     padding-inline: 8px;
     font-size: 12px;
   }
+}
 
-  .metrics > div {
-    padding-inline: 7px;
+@media (prefers-reduced-motion: reduce) {
+  dialog#lock-dialog,
+  dialog#lock-dialog::backdrop {
+    transition: none;
   }
 }
 

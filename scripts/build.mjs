@@ -2,10 +2,15 @@ import { cp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createCalculator } from '../src/calculator.js';
+import { generateRuntimeModels, readRuntimeInputs } from './generate-models.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(root, 'dist');
+const flags = path.join(root, 'flags');
+const flagLicense = path.join(flags, 'LICENSE');
 const dataFiles = ['model.json', 'probabilities.json', 'decision_reference.json'];
+const stageFile = 'stage_profiles.json';
+const groupedProbabilitiesFile = 'probabilities_by_group.json';
 
 async function loadSnapshot() {
   const entries = await Promise.all(dataFiles.map(async (name) => [
@@ -29,6 +34,18 @@ createCalculator({
   probabilities: data['probabilities.json'],
   reference: data['decision_reference.json'],
 });
+const runtimeInputs = await readRuntimeInputs(root);
+const runtimeModels = generateRuntimeModels(runtimeInputs);
+for (const [group, entry] of Object.entries(runtimeModels.groups)) {
+  const calculator = createCalculator(entry);
+  if (calculator.cap !== entry.reference.cap || calculator.stateCount !== entry.reference.stateCount) {
+    throw new Error(`组 ${group} 的生成模型元数据不一致`);
+  }
+  if (calculator.lockProof.valid !== entry.lockProof.valid
+      || Math.abs(calculator.lockProof.minAdvantage - entry.lockProof.minAdvantage) > 1e-7) {
+    throw new Error(`组 ${group} 的锁定证明与当前模型不一致`);
+  }
+}
 
 const indexPath = path.join(root, 'index.html');
 const stylesPath = path.join(root, 'styles.css');
@@ -40,6 +57,14 @@ const languageCodes = languages.map(({ code }) => code);
 if (languages.length !== 18 || new Set(languageCodes).size !== languages.length) {
   throw new Error('语言字典必须提供 18 种不重复的语言');
 }
+const flagFiles = [...new Set(languages.map(({ flag }) => {
+  if (typeof flag !== 'string' || !/^[a-z]{2}$/i.test(flag)) {
+    throw new Error('每种语言都必须提供 ISO alpha-2 国旗代码');
+  }
+  return `${flag.toLowerCase()}.svg`;
+}))];
+await Promise.all(flagFiles.map((name) => stat(path.join(flags, name))));
+await stat(flagLicense);
 const expectedKeys = Object.keys(messages['zh-CN'] ?? {}).sort();
 for (const code of languageCodes) {
   const dictionary = messages[code];
@@ -57,6 +82,11 @@ for (const name of dataFiles) {
     throw new Error(`构建期间 data/${name} 已变化，请重试构建`);
   }
 }
+const runtimeInputsAfter = await readRuntimeInputs(root);
+if (runtimeInputs.snapshot.stageText !== runtimeInputsAfter.snapshot.stageText
+    || runtimeInputs.snapshot.probabilityText !== runtimeInputsAfter.snapshot.probabilityText) {
+  throw new Error(`构建期间 data/${stageFile} 或 data/${groupedProbabilitiesFile} 已变化，请重试构建`);
+}
 
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
@@ -64,7 +94,11 @@ await Promise.all([
   cp(indexPath, path.join(dist, 'index.html')),
   cp(stylesPath, path.join(dist, 'styles.css')),
   cp(path.join(root, 'src'), path.join(dist, 'src'), { recursive: true }),
+  mkdir(path.join(dist, 'flags'), { recursive: true }),
   mkdir(path.join(dist, 'data'), { recursive: true }),
 ]);
 await Promise.all(dataFiles.map((name) => writeFile(path.join(dist, 'data', name), before.get(name))));
-console.log('已生成 dist：页面、样式、ES 模块及三份经过校验的运行时 JSON。');
+await writeFile(path.join(dist, 'data', 'runtime_models.json'), `${JSON.stringify(runtimeModels)}\n`);
+await Promise.all(flagFiles.map((name) => cp(path.join(flags, name), path.join(dist, 'flags', name))));
+await cp(flagLicense, path.join(dist, 'flags', 'LICENSE'));
+console.log('已生成 dist：页面、样式、ES 模块、既有数据及五组独立求解并通过 Bellman 校验的运行时模型。');

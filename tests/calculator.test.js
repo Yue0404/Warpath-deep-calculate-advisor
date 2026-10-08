@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { createCalculator } from '../src/calculator.js';
+import { generateRuntimeModels, readRuntimeInputs } from '../scripts/generate-models.mjs';
 
 const readJson = async (name) => JSON.parse(await readFile(new URL(`../data/${name}`, import.meta.url), 'utf8'));
 const [model, probabilities, reference] = await Promise.all([
@@ -10,6 +11,7 @@ const [model, probabilities, reference] = await Promise.all([
   readJson('decision_reference.json'),
 ]);
 const calculator = createCalculator({ model, probabilities, reference });
+const runtimeModels = generateRuntimeModels(await readRuntimeInputs());
 
 test('参考值覆盖全部排序状态且满足 Bellman 方程', () => {
   assert.equal(reference.states.length, 364);
@@ -128,4 +130,40 @@ test('无锁筛选成本低于锁成本，且相邻结果分布一阶随机占�
       assert.ok(higherCdf <= lowerCdf, `${quality} -> ${quality + 1} 在 cutoff ${cutoff} 不满足 FOSD`);
     }
   }
+});
+
+test('五个分组分别生成与校验 Bellman 模型及终止状态', () => {
+  assert.deepEqual(Object.keys(runtimeModels.groups), ['10', '20', '30', '40', '50']);
+  for (const [group, entry] of Object.entries(runtimeModels.groups)) {
+    const valueModel = createCalculator(entry);
+    const cap = entry.reference.cap;
+    assert.equal(valueModel.cap, cap);
+    assert.equal(valueModel.stateCount, ((cap + 1) * (cap + 2) * (cap + 3)) / 6);
+    assert.equal(valueModel.value([cap, cap, cap]), 0);
+    assert.ok(valueModel.worstBellmanResidual < 1e-7, `组 ${group} 最大残差 ${valueModel.worstBellmanResidual}`);
+  }
+});
+
+test('group40独立求解与既有参考值一致，且全部组的锁定动作证明成立', () => {
+  const group40 = runtimeModels.groups['40'];
+  const maxDifference = Math.max(...reference.states.map((state) => Math.abs(
+    state[3] - group40.reference.states.find((item) => item[0] === state[0]
+      && item[1] === state[1] && item[2] === state[2])[3],
+  )));
+  assert.ok(maxDifference < 1e-6, `旧group40参考值最大差异 ${maxDifference}`);
+  for (const [group, proof] of Object.entries(runtimeModels.lockProofs)) {
+    assert.equal(proof.valid, true, `组 ${group} 出现锁定反例 ${JSON.stringify(proof.counterexample)}`);
+    assert.ok(proof.minAdvantage >= -1e-8, `组 ${group} 最小锁定差额 ${proof.minAdvantage}`);
+  }
+});
+
+test('拒绝多组模型中的坏权重与同版本陈旧值', () => {
+  const sample = runtimeModels.groups['20'];
+  const badWeights = structuredClone(sample);
+  badWeights.probabilities.rows[1].absolute_outcome_weights['1'] -= 1;
+  assert.throws(() => createCalculator(badWeights), /权重/);
+
+  const stale = structuredClone(sample);
+  stale.reference.states[0][3] += 1;
+  assert.throws(() => createCalculator(stale), /Bellman 残差/);
 });
