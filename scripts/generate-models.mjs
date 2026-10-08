@@ -209,14 +209,7 @@ function sanitizeProfiles(profiles, groups) {
     outputs[region] = {
       label: profile.label,
       openAt: profile.open_at,
-      timezone: profile.timezone,
       refreshHourUtc: region === 'cn' ? 16 : 0,
-      version: {
-        game: profile.version.game,
-        package: profile.version.package,
-        runtime: profile.version.runtime,
-        runtimeStatus: profile.version.runtime_status,
-      },
       intervalMs: profiles.formula.interval_seconds * 1000,
       initialGroup: profiles.formula.initial_level,
       initialCap: profiles.formula.initial_quality,
@@ -242,35 +235,95 @@ export function generateRuntimeModels({ stageProfiles, groupedProbabilities }) {
   if (JSON.stringify(expectedGroupIds) !== JSON.stringify(actualGroupIds)) {
     throw new Error('阶段配置与概率数据的分组集合不匹配');
   }
-  for (const [group, , cap, valid] of stageProfiles.group_checks) {
-    if (valid !== true || groups[String(group)]?.reference.cap !== cap) {
-      throw new Error(`阶段配置中的组 ${group} 上限与概率表不一致`);
-    }
+  const { initial_level: initialGroup, initial_quality: initialCap, level_step: groupStep, quality_step: capStep } =
+    stageProfiles.formula;
+  if (![initialGroup, initialCap, groupStep, capStep].every(Number.isInteger)
+      || groupStep <= 0 || capStep <= 0) {
+    throw new Error('阶段配置中的组号与品级递增规则无效');
   }
-  for (const [group, same] of Object.entries(stageProfiles.group_comparison.same_content_by_id)) {
-    if (!groups[group] || same !== true) throw new Error(`组 ${group} 缺少跨服同ID一致性证据`);
+  for (const group of actualGroupIds) {
+    const promotionOffset = (group - initialGroup) / groupStep;
+    const expectedCap = initialCap + promotionOffset * capStep;
+    if (!Number.isInteger(promotionOffset) || groups[String(group)]?.reference.cap !== expectedCap) {
+      throw new Error(`组 ${group} 的概率行数或上限与阶段递增规则不一致`);
+    }
   }
   return {
     schema_version: 1,
-    built_at: new Date().toISOString(),
-    probability_evidence: {
-      source_region: groupedProbabilities.server_region,
-      group_equality_evidence: stageProfiles.probability_data.group_equality_evidence,
-      note: stageProfiles.probability_data.note,
-    },
-    stage_formula: {
-      intervalMs: stageProfiles.formula.interval_seconds * 1000,
-      initialGroup: stageProfiles.formula.initial_level,
-      initialCap: stageProfiles.formula.initial_quality,
-      groupStep: stageProfiles.formula.level_step,
-      capStep: stageProfiles.formula.quality_step,
-      initialGeneration: stageProfiles.formula.initial_generation,
-    },
     profiles: sanitizeProfiles(stageProfiles, Object.keys(groups)),
     groups,
-    diagnostics: Object.fromEntries(Object.entries(groups).map(([key, value]) => [key, value.diagnostics])),
-    lockProofs: Object.fromEntries(Object.entries(groups).map(([key, value]) => [key, value.lockProof])),
   };
+}
+
+function projectProbabilityRows(rows) {
+  return rows.map((row) => ({
+    quality_index: row.quality_index,
+    row_total_weight: row.row_total_weight,
+    absolute_outcome_weights: row.absolute_outcome_weights,
+    delta_weights: row.delta_weights,
+  }));
+}
+
+export function projectRuntimeModels(models) {
+  const profiles = Object.fromEntries(Object.entries(models.profiles).map(([region, profile]) => [region, {
+    label: profile.label,
+    openAt: profile.openAt,
+    refreshHourUtc: profile.refreshHourUtc,
+    intervalMs: profile.intervalMs,
+    initialGroup: profile.initialGroup,
+    initialCap: profile.initialCap,
+    groupStep: profile.groupStep,
+    capStep: profile.capStep,
+    supportedGroups: [...profile.supportedGroups],
+  }]));
+
+  const groups = Object.fromEntries(Object.entries(models.groups).map(([key, entry]) => {
+    const group = entry.model.source_version.group_key;
+    const cap = entry.model.source_version.current_quality_cap;
+    const modelId = entry.model.model_id;
+    return [key, {
+      model: {
+        schema_version: entry.model.schema_version,
+        model_id: modelId,
+        group,
+        cap,
+        mechanics: {
+          ordinary_deep_calculation_chip_cost:
+            entry.model.mechanics_from_configuration.ordinary_deep_calculation_chip_cost,
+          lock_one_attribute_chip_cost:
+            entry.model.mechanics_from_configuration.lock_one_attribute_chip_cost,
+        },
+        objective: { target_state: [...entry.model.objective.target_state] },
+        dynamic_program: {
+          state_count: entry.model.dynamic_program.state_count,
+          terminal_value_chips: entry.model.dynamic_program.terminal_value_chips,
+        },
+      },
+      probabilities: {
+        schema_version: entry.probabilities.schema_version,
+        group: entry.probabilities.source.group_key,
+        cap: entry.probabilities.source.current_cap,
+        weight_scale: entry.probabilities.weight_scale,
+        rows: projectProbabilityRows(entry.probabilities.rows),
+      },
+      reference: {
+        v: entry.reference.v,
+        model: modelId,
+        group: entry.reference.group,
+        cap: entry.reference.cap,
+        stateCount: entry.reference.stateCount,
+        target: [...entry.reference.target],
+        terminalValue: entry.reference.terminalValue,
+        states: entry.reference.states.map((state) => [...state]),
+      },
+      lockProof: {
+        valid: entry.lockProof.valid,
+        minAdvantage: entry.lockProof.minAdvantage,
+      },
+    }];
+  }));
+
+  return { schema_version: models.schema_version, profiles, groups };
 }
 
 export async function readRuntimeInputs(baseDir = root) {

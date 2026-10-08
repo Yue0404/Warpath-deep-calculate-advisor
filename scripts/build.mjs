@@ -2,7 +2,7 @@ import { cp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createCalculator } from '../src/calculator.js';
-import { generateRuntimeModels, readRuntimeInputs } from './generate-models.mjs';
+import { generateRuntimeModels, projectRuntimeModels, readRuntimeInputs } from './generate-models.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(root, 'dist');
@@ -39,14 +39,43 @@ createCalculator({
 });
 const runtimeInputs = await readRuntimeInputs(root);
 const runtimeModels = generateRuntimeModels(runtimeInputs);
+const publicRuntimeModels = projectRuntimeModels(runtimeModels);
+const forbiddenPublicFields = new Set([
+  'source', 'source_version', 'probability_evidence', 'group_comparison', 'probability_data',
+  'diagnostics', 'built_at', 'solver', 'equation', 'runtimeStatus', 'runtime_status',
+  'version', 'counterexample', 'method', 'note', 'evidence',
+]);
+function assertPublicFields(value, path = 'runtime_models') {
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => assertPublicFields(item, `${path}[${index}]`));
+    return;
+  }
+  if (!value || typeof value !== 'object') return;
+  for (const [key, child] of Object.entries(value)) {
+    if (forbiddenPublicFields.has(key)) throw new Error(`公开运行时模型包含内部字段：${path}.${key}`);
+    assertPublicFields(child, `${path}.${key}`);
+  }
+}
+assertPublicFields(publicRuntimeModels);
 for (const [group, entry] of Object.entries(runtimeModels.groups)) {
   const calculator = createCalculator(entry);
+  const publicEntry = publicRuntimeModels.groups[group];
+  const publicCalculator = createCalculator(publicEntry);
   if (calculator.cap !== entry.reference.cap || calculator.stateCount !== entry.reference.stateCount) {
     throw new Error(`组 ${group} 的生成模型元数据不一致`);
   }
   if (calculator.lockProof.valid !== entry.lockProof.valid
       || Math.abs(calculator.lockProof.minAdvantage - entry.lockProof.minAdvantage) > 1e-7) {
     throw new Error(`组 ${group} 的锁定证明与当前模型不一致`);
+  }
+  if (publicCalculator.cap !== calculator.cap || publicCalculator.stateCount !== calculator.stateCount
+      || publicCalculator.ordinaryCost !== calculator.ordinaryCost
+      || publicCalculator.lockedCost !== calculator.lockedCost
+      || publicCalculator.lockProof.valid !== calculator.lockProof.valid
+      || Math.abs(publicCalculator.lockProof.minAdvantage - calculator.lockProof.minAdvantage) > 1e-7
+      || entry.reference.states.some((state) =>
+        publicCalculator.value(state.slice(0, 3)) !== calculator.value(state.slice(0, 3)))) {
+    throw new Error(`组 ${group} 的公开投影改变了计算值或完整性校验`);
   }
 }
 
@@ -108,7 +137,7 @@ await Promise.all([
   mkdir(path.join(dist, 'assets'), { recursive: true }),
   mkdir(path.join(dist, 'vendor'), { recursive: true }),
 ]);
-await writeFile(path.join(dist, 'data', 'runtime_models.json'), `${JSON.stringify(runtimeModels)}\n`);
+await writeFile(path.join(dist, 'data', 'runtime_models.json'), `${JSON.stringify(publicRuntimeModels)}\n`);
 await Promise.all(flagFiles.map((name) => cp(path.join(flags, name), path.join(dist, 'flags', name))));
 await cp(flagLicense, path.join(dist, 'flags', 'LICENSE'));
 await Promise.all([

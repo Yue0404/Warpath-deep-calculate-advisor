@@ -39,8 +39,6 @@ export function selectStage(profiles, region, now) {
       gameDate,
       nextDailyRefreshAt,
       nextChangeAt: Math.min(openMs, nextDailyRefreshAt),
-      version: profile.version,
-      timezone: profile.timezone,
     };
   }
   const promotionCount = Math.floor((nowMs - openMs) / intervalMs);
@@ -58,8 +56,6 @@ export function selectStage(profiles, region, now) {
     gameDate,
     nextDailyRefreshAt,
     nextChangeAt: Math.min(openMs + (promotionCount + 1) * intervalMs, nextDailyRefreshAt),
-    version: profile.version,
-    timezone: profile.timezone,
   };
 }
 
@@ -109,10 +105,12 @@ export function createModelLoader({
     const stage = selectStage(models.profiles, region, now);
     if (stage.status !== 'supported') return { status: stage.status, region, stage };
     const entry = models.groups[String(stage.group)];
-    if (!entry || entry.model?.source_version?.group_key !== stage.group
-        || entry.model?.source_version?.current_quality_cap !== stage.cap
-        || entry.probabilities?.source?.group_key !== stage.group
-        || entry.probabilities?.source?.current_cap !== stage.cap) {
+    const modelGroup = entry?.model?.group ?? entry?.model?.source_version?.group_key;
+    const modelCap = entry?.model?.cap ?? entry?.model?.source_version?.current_quality_cap;
+    const probabilityGroup = entry?.probabilities?.group ?? entry?.probabilities?.source?.group_key;
+    const probabilityCap = entry?.probabilities?.cap ?? entry?.probabilities?.source?.current_cap;
+    if (!entry || modelGroup !== stage.group || modelCap !== stage.cap
+        || probabilityGroup !== stage.group || probabilityCap !== stage.cap) {
       stage.status = 'unsupported';
       return { status: 'unsupported', region, stage };
     }
