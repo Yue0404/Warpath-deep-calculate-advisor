@@ -13,9 +13,9 @@ npm run build
 npm run dev -- --port=4173 --base=/calculator/
 ```
 
-开发服务器会先构建，然后在 `http://localhost:4173/calculator/` 提供 `dist/`。端口可改为其他 `--port` 数值。`--base` 用于模拟项目 Pages 子路径，必须以 `/` 开头或结尾（脚本会自动补齐）。构建产物包括页面、样式、`src/`、运行时 JSON、本地语言旗帜 SVG 和许可证，不包含其他离线数据。
+开发服务器会先构建，然后在 `http://localhost:4173/calculator/` 提供 `dist/`。端口可改为其他 `--port` 数值。`--base` 用于模拟项目 Pages 子路径，必须以 `/` 开头或结尾（脚本会自动补齐）。构建产物包括页面、样式、`src/`、`data/runtime_models.json`、用到的语言旗帜 SVG、计算卡图标、本地 Chart.js 及其许可证。`data/model.json`、`data/probabilities.json` 和 `data/decision_reference.json` 只在构建时用于校验，不会发布到 `dist/`。
 
-当前 `npm test` 的 48 项测试覆盖计算器、配置阶段和加载、网络时钟、输入校验、浏览器偏好、国际化及概率图表。
+`npm test` 覆盖计算器、配置阶段和加载、网络时钟、输入校验、浏览器偏好、国际化及概率图表。
 
 ## 页面操作
 
