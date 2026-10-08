@@ -1,49 +1,13 @@
 {
   "schema_version": 1,
   "model_id": "three_equal_no_lock_group_accept_discard_to_11_v1",
-  "purpose": "三个等价值词条全到11品时，最小化期望剩余计算芯片",
   "source_version": {
-    "game_version": "657",
-    "package_version": "14.40.400",
-    "runtime_update_version": "14.40.32",
     "group_key": 40,
     "current_quality_cap": 11
   },
   "mechanics_from_configuration": {
     "ordinary_deep_calculation_chip_cost": 5,
-    "lock_one_attribute_chip_cost": 20,
-    "guarantee_configuration": {
-      "global_level_id": 40,
-      "guarantee_start_quality": 9,
-      "guarantee_end_quality": 11,
-      "guarantee_num_default": 200
-    },
-    "raw_setting_keys": {
-      "ordinary_cost": "deep_calculate_consume",
-      "locked_cost": "deep_calculate_consume_lock",
-      "ordinary_counter": "deep_calculate_guarantee_count",
-      "locked_counter": "deep_calculate_guarantee_lock_count"
-    },
-    "boundary": "这些是客户端配置值和配置描述。服务端计数推进、触发对象、触发条件、放弃结果是否计数及计数重置规则均未由当前配置证明；保底未纳入本模型。",
-    "ordinary_guarantee_counter_configured_count_value": 1,
-    "locked_guarantee_counter_configured_count_value": 4
-  },
-  "assumptions": {
-    "attributes_are_independent": {
-      "value": true,
-      "evidence_status": "unverified_temporary_assumption",
-      "note": "原始概率表只给出单个配置索引的结果权重，没有证明三词条联合抽取相互独立。"
-    },
-    "quality_index_equals_current_quality": {
-      "value": true,
-      "evidence_status": "unverified_modeling_assumption",
-      "note": "仅为计算器按当前品阶查表所需的暂定口径，服务端选档逻辑未闭环。"
-    },
-    "equal_attribute_value": true,
-    "whole_group_accept_or_discard": true,
-    "discard_preserves_current_state_without_cost": true,
-    "lock_action_included_in_optimization": false,
-    "no_guarantee_or_catch_up_effect_in_transition_model": true
+    "lock_one_attribute_chip_cost": 20
   },
   "objective": {
     "target_state": [
@@ -51,88 +15,10 @@
       11,
       11
     ],
-    "minimize": "expected_remaining_chips",
-    "state_identity": "三条属性等价，品阶排序后存储为非降序三元组；所有 0..11 品阶的排序状态共364种。",
-    "decision_after_result": "比较接受后的V(next_state)与放弃后的V(current_state)。更低者更省期望卡；相等时对该目标等价。"
+    "minimize": "expected_remaining_chips"
   },
-  "actions": [
-    {
-      "id": "reroll_all",
-      "cost_chips": 5,
-      "description": "不锁，三条一起计算；整组接受或放弃结果。"
-    },
-    {
-      "id": "lock_one",
-      "cost_chips": 20,
-      "description": "锁定一条后计算另外两条；本决策参考未对该动作求最优策略。"
-    }
-  ],
   "dynamic_program": {
-    "terminal_state": [
-      11,
-      11,
-      11
-    ],
     "terminal_value_chips": 0,
-    "equation": "对非终止状态 s，V(s)=5+Σ_t P(t|s)·min(V(s),V(t))。P(t|s) 由三个单条结果行在独立抽取假设下卷积，并把结果三元组排序、对同一结果状态概率求和。",
-    "interpretation": "每次抽取先支付5张；看到整组结果后，可接受并继续于t，或放弃并保留s。该比较计入未来耗卡，不把已支付的当前5张再加到两种选择任一边。",
-    "state_count": 364,
-    "solver": {
-      "method": "从全零初值进行Bellman value iteration；终止状态固定为0。",
-      "stopping_rule": "连续迭代最大绝对残差 < 1e-12 chips。",
-      "tolerance": 1e-12,
-      "iterations": 574,
-      "final_max_absolute_residual_chips": 9.094947017729282e-13,
-      "initial_value_function": "V_0(s)=0 for all states"
-    },
-    "optimal_policy_scope": "这是不锁策略的最优整组保存/放弃规则；没有求解锁定动作下的策略，也不适用于词条有不同价值或优先级。",
-    "full_optional_action_form": "V(s)=min{Q_U(s), min_i Q_L_i(s)}；Q_a(s)=cost(a)+Σ_t P_a(t|s)·min(V(s),V(t))。无锁U抽三条；锁定L_i固定第i条并抽另外两条。参考值只直接求解U的Bellman方程；只有在lock_action_dominance.required_assumptions成立时，它才同时代表允许锁定动作时的最优值。",
-    "proof_scope": "reference solver仅有无锁动作。上述支配证明在列出的模型假设内说明无需对锁定动作另求Bellman最优；不构成实机保证。"
-  },
-  "source_files": [
-    "source/SuperComputerDeepCalculateDrop.lua",
-    "source/SuperComputerSetting.lua",
-    "source/SuperComputerDeepCalculateGuarantee.lua",
-    "source/source_unpack_manifest.json"
-  ],
-  "lock_action_dominance": {
-    "claim": "在本数据表且独立抽取、整组可免费放弃的假设下，不锁的动作在期望耗卡上支配锁一条；因此只计算不锁状态值足以代表包含锁定选项时的最优期望卡耗。",
-    "non_downgrade_probability_by_quality_index": [
-      1,
-      1,
-      1,
-      0.86,
-      0.75,
-      0.55,
-      0.7,
-      0.45,
-      0.6,
-      0.3,
-      0.8,
-      0.4
-    ],
-    "worst_case_unlocked_filter_cost_chips": 16.666666666666668,
-    "lock_cost_chips": 20,
-    "probability_source_scope": "按本表将quality_index暂作当前单条品阶时计算；索引选择规则仍未证实。",
-    "proof_sketch": [
-      "模拟一次锁定某属性：锁定属性保持q，另外两条按各自分布抽取，花20张。",
-      "不锁时反复整组洗；若该属性结果低于q，就整组放弃并重洗。独立假设使第一次该属性结果不低于q时，另外两条仍服从同一分布；该属性自身达到不低于q，且有机会提升。",
-      "等待该属性不降的期望耗卡为5/p。表内最小p为0.30，所以最大值为16.6667，低于锁定成本20。",
-      "结果分布随当前索引增加而一阶随机占优；在各属性价值相同、以到达11品为目标时，较高当前品阶不会提高最优未来成本。因此上述模拟状态不会比锁定结果差。"
-    ],
-    "required_assumptions": [
-      "三条属性独立抽取",
-      "放弃不收费且保留原状态",
-      "当前quality_index确实对应抽取分布所用的当前单条品阶",
-      "更高品阶状态对当前目标不劣于更低品阶"
-    ],
-    "evidence_status": "模型内推导，不是对游戏服务器实现的证实；任何假设变化都需要重算。"
-  },
-  "decision_reference": {
-    "file": "decision_reference.json",
-    "state_count": 364,
-    "one_step_exchange_record_count": 1081,
-    "state_encoding": "states数组项为[低品阶,中品阶,高品阶,V]",
-    "exchange_encoding": "exchanges数组项为[fromIndex,toIndex,choice,moves]；moves中每项为[降品前品阶,升品前品阶,不变品阶]"
+    "state_count": 364
   }
 }

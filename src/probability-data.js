@@ -3,12 +3,19 @@ const DELTAS = [-2, -1, 0, 1, 2];
 /** 将已校验的概率模型整理为质量等级有序的百分比数据。 */
 export function normalizeProbabilityData(probabilities) {
   const source = probabilities?.source;
-  const cap = source?.current_cap;
-  const group = source?.group_key;
+  const hasPublicMetadata = Object.hasOwn(probabilities ?? {}, 'group')
+    && Object.hasOwn(probabilities ?? {}, 'cap');
+  const hasLegacyMetadata = source !== null && typeof source === 'object'
+    && Object.hasOwn(source, 'group_key') && Object.hasOwn(source, 'current_cap');
+  const group = hasPublicMetadata ? probabilities.group : source?.group_key;
+  const cap = hasPublicMetadata ? probabilities.cap : source?.current_cap;
   const weightScale = probabilities?.weight_scale;
   const rows = probabilities?.rows;
 
-  if (!Number.isInteger(group) || group < 0 || !Number.isInteger(cap) || cap < 0
+  if ((!hasPublicMetadata && !hasLegacyMetadata)
+      || !Number.isInteger(group) || group < 0 || !Number.isInteger(cap) || cap < 0
+      || (hasPublicMetadata && hasLegacyMetadata
+        && (group !== source.group_key || cap !== source.current_cap))
       || !Number.isFinite(weightScale) || weightScale <= 0 || !Array.isArray(rows)
       || rows.length !== cap + 1) {
     throw new TypeError('概率模型元数据或行数无效');

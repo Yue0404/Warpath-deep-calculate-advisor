@@ -1,26 +1,4 @@
 {
-  "server_region": "cn",
-  "server_label": "国服",
-  "game_version": "654",
-  "package_version": "14.40.336",
-  "runtime_update_version": null,
-  "source_layer": "安装目录中的基础包Lua bundle",
-  "as_of_date": "2026-10-08",
-  "stage_estimate": {
-    "server_region": "cn",
-    "server_label": "国服",
-    "as_of_date": "2026-10-08",
-    "opening_date": "2026-07-27",
-    "elapsed_days": 73,
-    "promotion_interval_days": 180,
-    "promotion_count_from_client_formula": 0,
-    "generation_from_client_formula": 2,
-    "level_max_from_client_formula": 20,
-    "quality_max_from_client_formula": 7,
-    "candidate_global_level_id": 20,
-    "candidate_group_status": "按代数与Drop表分组编号对应关系推算；服务端实际选组未核实"
-  },
-  "table_file": "source/lua_gamedata/SuperComputerDeepCalculateDrop.lua",
   "weight_scale": 10000,
   "groups_by_global_level_id": {
     "10": {
@@ -1736,6 +1714,5 @@
       "max_quality_in_table": 13,
       "quality_count": 14
     }
-  },
-  "comparison_note": "同版本行权重对照国际服基线见comparison.json；候选生效组根据客户端阶段公式推算，服务端实际选组未核实。"
+  }
 }

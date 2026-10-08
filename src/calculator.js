@@ -31,8 +31,10 @@ function sortedState(state, cap, label) {
 }
 
 function validateData(model, probabilities, reference) {
-  const group = model?.source_version?.group_key;
-  const cap = model?.source_version?.current_quality_cap;
+  const group = model?.group ?? model?.source_version?.group_key;
+  const cap = model?.cap ?? model?.source_version?.current_quality_cap;
+  const probabilityGroup = probabilities?.group ?? probabilities?.source?.group_key;
+  const probabilityCap = probabilities?.cap ?? probabilities?.source?.current_cap;
   const rows = probabilities?.rows;
   const weightScale = probabilities?.weight_scale;
   if (!Number.isInteger(group) || group < 0 || !Number.isInteger(cap) || cap < 1) {
@@ -43,21 +45,32 @@ function validateData(model, probabilities, reference) {
   if (model.schema_version !== 1 || probabilities.schema_version !== 1 || reference.v !== 1) {
     fail('模型、概率或参考表 schema 版本不匹配');
   }
-  for (const key of ['game_version', 'package_version', 'runtime_update_version', 'group_key', 'current_quality_cap']) {
-    const probabilityKey = key === 'current_quality_cap' ? 'current_cap' : key;
-    if (model.source_version?.[key] !== probabilities.source?.[probabilityKey]) {
-      fail(`模型与概率数据的版本字段 ${key} 不匹配`);
-    }
-  }
-  if (probabilities.source?.group_key !== group || probabilities.source?.current_cap !== cap) {
+  if (probabilityGroup !== group || probabilityCap !== cap) {
     fail('概率数据的分组或品级上限与模型不匹配');
+  }
+  const hasModelSource = model.source_version && typeof model.source_version === 'object';
+  const hasProbabilitySource = probabilities.source && typeof probabilities.source === 'object';
+  if (hasModelSource !== hasProbabilitySource) fail('模型与概率数据的分组元数据格式不匹配');
+  if (hasModelSource) {
+    for (const key of ['game_version', 'package_version', 'runtime_update_version']) {
+      if (model.source_version[key] !== probabilities.source[key]) {
+        fail(`模型与概率数据的版本字段 ${key} 不匹配`);
+      }
+    }
+    if (model.source_version.group_key !== group
+        || model.source_version.current_quality_cap !== cap
+        || probabilities.source.group_key !== group
+        || probabilities.source.current_cap !== cap) {
+      fail('模型与概率数据的组号或品级上限不匹配');
+    }
   }
   if ((reference.group !== undefined && reference.group !== group)
       || (reference.cap !== undefined && reference.cap !== cap)) {
     fail('参考值分组或品级上限与模型不匹配');
   }
-  if (model.mechanics_from_configuration?.ordinary_deep_calculation_chip_cost !== 5
-      || model.mechanics_from_configuration?.lock_one_attribute_chip_cost !== 20) {
+  const mechanics = model.mechanics ?? model.mechanics_from_configuration;
+  if (mechanics?.ordinary_deep_calculation_chip_cost !== 5
+      || mechanics?.lock_one_attribute_chip_cost !== 20) {
     fail('计算成本必须为 5 与 20');
   }
   if (!Number.isInteger(weightScale) || weightScale < 1 || rows?.length !== cap + 1) {

@@ -1,47 +1,8 @@
 {
   "schema_version": 1,
-  "purpose": "Warpath 超级计算机深度计算的暂定配置概率数据",
   "source": {
-    "game_version": "657",
-    "package_version": "14.40.400",
-    "runtime_update_version": "14.40.32",
-    "runtime_revision": "643536",
-    "runtime_build_number": "430",
-    "generated_at_utc": "2026-09-30T08:20:09+00:00",
     "group_key": 40,
-    "modeled_quality_indices": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8,
-      9,
-      10,
-      11
-    ],
-    "current_cap": 11,
-    "raw_fields": {
-      "global_level_id": 1,
-      "quailty_id": 2,
-      "drop_quailty_id": 3,
-      "drop_quailty_rate": 4
-    },
-    "files": [
-      "source/SuperComputerDeepCalculateDrop.lua",
-      "source/source_unpack_manifest.json"
-    ]
-  },
-  "evidence_boundary": {
-    "configuration_rows": "Drop.lua 的 [40] 分组：q0 显式引用 RepeatTable[1]，结果为 [1]；该行省略权重，使用 DefaultTable 权重 [10000]。q3 行省略结果列表，使用 DefaultTable 结果 [2,3,4,5]，并使用该行显式权重 [1400,3400,4000,1200]。",
-    "not_verified": [
-      "服务端如何为每个词条选择 quality_index，不能据此断言当前词条品阶必然等于该索引。",
-      "三个词条是否独立抽取没有被原始客户端配置证明。",
-      "配置无法说明 8 品直接到 11 品的实机现象是否由选档、补偿或其他服务端逻辑造成。"
-    ]
+    "current_cap": 11
   },
   "weight_scale": 10000,
   "delta_column_order": [

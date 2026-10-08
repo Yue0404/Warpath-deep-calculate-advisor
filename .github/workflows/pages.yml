@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-and-build:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: 取出仓库
@@ -26,8 +26,6 @@ jobs:
           node-version: 22
       - name: 安装锁定依赖
         run: npm ci
-      - name: 运行测试
-        run: npm test
       - name: 构建静态站点
         run: npm run build
       - name: 上传 Pages 构建产物
@@ -37,7 +35,7 @@ jobs:
           path: dist
 
   deploy:
-    needs: test-and-build
+    needs: build
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:

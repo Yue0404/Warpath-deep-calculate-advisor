@@ -1,48 +1,25 @@
 # Warpath 深度计算器
 
-这是一个无需后端服务器的静态网页计算器。页面使用原生 JavaScript ES 模块，Chart.js 在构建时打包为本地资源，不依赖 CDN。控制器协调首次浏览器语言偏好、服务器选择和输入；模型载入器按服务器及网络 UTC 时间选择阶段；计算模块只比较模型参考值。浏览器偏好、界面语言和服务器选择保存在访客本机，不会发送给服务器。构建会校验阶段、配置组、概率分布和参考状态。
+如果你在深度计算中拿到了一升一降的结果，可以在这里输入数据获取建议。
+计算器的最终目的是三个词条均达到最高品。因此其建议仅供参考，具体是否接受还要看词条对账号的重要性。
 
-## 本地使用
+## 语言 Language
 
-需要 Node.js 20 或更高版本。
+计算器提供 18 种语言：简体中文、繁体中文、英语、阿拉伯语、法语、德语、印度尼西亚语、意大利语、日语、韩语、马来语、波兰语、葡萄牙语、俄语、西班牙语、泰语、土耳其语和越南语。阿拉伯语界面使用从右向左（RTL）排版。
 
-```sh
-npm ci
-npm test
-npm run build
-npm run dev -- --port=4173 --base=/calculator/
-```
+18 languages supported: zh-Hans, zh-Hant, English, Arabic, French, German, Indonesian, Italian, Japanese, Korean, Malay, Polish, Portuguese, Russian, Spanish, Thai, Turkish, and Vietnamese.
+The Arabic interface uses right-to-left (RTL) layout.
 
-开发服务器会先构建，然后在 `http://localhost:4173/calculator/` 提供 `dist/`。端口可改为其他 `--port` 数值。`--base` 用于模拟项目 Pages 子路径，必须以 `/` 开头或结尾（脚本会自动补齐）。构建产物包括页面、样式、`src/`、`data/runtime_models.json`、用到的语言旗帜 SVG、计算卡图标、本地 Chart.js 及其许可证。`data/model.json`、`data/probabilities.json` 和 `data/decision_reference.json` 只在构建时用于校验，不会发布到 `dist/`。
 
-`npm test` 覆盖计算器、配置阶段和加载、网络时钟、输入校验、浏览器偏好、国际化及概率图表。
+- 作者：Warpath 钥钥（国际服 UID：35600096）
+- 主页：[哔哩哔哩](https://space.bilibili.com/30300043)
+
+- Author: Warpath Yueyue uid:35600096
+- Profile: [bilibili](https://space.bilibili.com/30300043)
+
 
 ## 页面操作
 
-首次访问时，页面按浏览器语言偏好选择界面语言并将识别结果保存在本机，之后手动切换界面语言不会改变该记录。浏览器偏好为简体中文时默认国服并显示服务器选择；首次会提示服务器切换位置，访客手动关闭后不再显示。简体中文偏好下切换到繁体中文时仍显示中国国旗。其他浏览器偏好默认国际服并隐藏服务器选择。简中访客的服务器选择会保存在本机。
+在左侧列输入你的当前词条属性，在中间列输入你在游戏中的深度计算结果。然后点击“计算”按钮，计算器会自动计算出结果并推荐你保留或是放弃。
 
-页面默认展示三个词条的小锁，不锁定时消耗 5 张计算卡，锁定一个词条后消耗 20 张；卡片图片和消耗提示随状态显示。模型按网络 UTC 时间确定阶段：国际服在 UTC 00:00 刷新当天内容，国服在 UTC 16:00 刷新次日内容；每 180 天按配置升阶。页面通过当前站点的 HTTP `Date`／`Age` 响应头同步时间，再以单调计时器推进，不读取设备日期。首次无法取得网络时间时会禁用计算并提供重试；后续同步失败会显示提示并继续使用上次成功同步的网络时间。页面在日刷新和 180 天升阶边界重新核对阶段。同配置组刷新时保留录入与建议，配置组变化时清空录入。未开放或缺少当前配置时，仍会显示相应错误状态。
-
-三条当前品阶默认留空，以灰色占位符提示输入；重置或切换服务器后也恢复空值。分别手动输入 0 到当前模型上限之间的整数。编辑时可以暂时留空，计算时所有必需输入都必须有效。非法品阶会显示红色框线和输入框上方的错误气泡，修正后恢复。洗练增减选项按当前服务器模型过滤，只显示概率大于 0 且结果不越界的变化量；锁定词条保持不变。选取变化量后，页面自动显示只读新品阶。
-
-点击词条名称旁的小锁时会弹出渐显的提示窗口，提醒推荐不锁定；点“我知道了”或按 Esc 后锁定该词条，窗口渐隐关闭。锁定后只展示该词条的闭锁，点击可立即解锁。重置和切换服务器会清空锁定及输入。计算结果以纯文本显示建议。
-
-计算器是纯静态页面，使用预先计算的参考值比较保留与放弃方案，不连接后端服务。可打开升降品概率图表查看当前服务器配置的概率分布，也可切换为数值表。图表使用构建时打包的本地 Chart.js 资源。模型假设及适用边界见下文和[验收记录](docs/verification.md)。
-
-## 计算模型与边界
-
-模型目标是让三条等价值属性全部到达所选阶段的品阶上限，并最小化期望剩余计算卡。国服与国际服按各自开服时刻和阶段进度选择配置；概率配置只使用已打包的数据组，未知组显示为暂不支持，不会沿用邻组或夹到最大组。无锁计算成本为 5，锁一条成本为 20；结果比较接受与放弃对应的未来参考值，本次已经投入的卡不影响比较。
-
-每个配置组有独立参考值；锁定模式比较已经出现的整组结果，后续参考策略仍按不锁计算。数据中的抽取独立性和当前品阶与配置索引的对应关系属于模型假设，尚不能代表服务端实现。本模型假设三个属性等价值，不适用于特定词条优先或中间目标。具体配置和证据边界见 [验收记录](docs/verification.md)。
-
-## 语言
-
-计算器提供 18 种语言：简体中文、繁体中文、英语、阿拉伯语、法语、德语、印度尼西亚语、意大利语、日语、韩语、马来语、波兰语、葡萄牙语、俄语、西班牙语、泰语、土耳其语和越南语。阿拉伯语界面使用从右向左（RTL）排版。游戏支持语言的信息来源是 [Warpath: Ace Shooter 的 App Store 产品页面](https://apps.apple.com/us/app/warpath-ace-shooter/id1529067679)。
-
-作者：Warpath 钥钥（国际服 UID：35600096）；主页：[哔哩哔哩](https://space.bilibili.com/30300043)。
-
-## GitHub Pages 部署
-
-仓库为 [`Yue0404/Warpath-deep-calculate-advisor`](https://github.com/Yue0404/Warpath-deep-calculate-advisor)。`.github/workflows/pages.yml` 会在针对 `main` 或 `master` 的 PR 上运行测试和构建；合并后推送到这两个分支时部署，也可在 Actions 页面手动运行 `workflow_dispatch`。首次使用时，在 GitHub 仓库的 **Settings → Pages → Build and deployment** 中将来源设为 **GitHub Actions**。部署成功后的地址为 [https://yue0404.github.io/Warpath-deep-calculate-advisor/](https://yue0404.github.io/Warpath-deep-calculate-advisor/)。GitHub Pages 为静态托管，不需要自有服务器。
-
-该地址是预期 Pages 地址；只有工作流完成部署后才表示站点已发布。
+Input your attributes values in the left field. Input your deep-calculate results in the middle field. Click "calculate" button, the calculator will calculate the result autoly, then recommand you to keep or abandon.
