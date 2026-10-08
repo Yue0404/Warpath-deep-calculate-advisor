@@ -108,7 +108,6 @@ await Promise.all([
   mkdir(path.join(dist, 'assets'), { recursive: true }),
   mkdir(path.join(dist, 'vendor'), { recursive: true }),
 ]);
-await Promise.all(dataFiles.map((name) => writeFile(path.join(dist, 'data', name), before.get(name))));
 await writeFile(path.join(dist, 'data', 'runtime_models.json'), `${JSON.stringify(runtimeModels)}\n`);
 await Promise.all(flagFiles.map((name) => cp(path.join(flags, name), path.join(dist, 'flags', name))));
 await cp(flagLicense, path.join(dist, 'flags', 'LICENSE'));
@@ -118,4 +117,4 @@ await Promise.all([
   cp(path.join(chartColorPackage, 'LICENSE.md'), path.join(dist, 'vendor', 'kurkle-color-LICENSE.md')),
   cp(deepCalculationCardPath, path.join(dist, 'assets', 'deep-calculation-card.png')),
 ]);
-console.log('已生成 dist：页面、样式、ES 模块、既有数据、五组运行时模型、本地 Chart.js 及深度计算卡图标。');
+console.log(`已生成 dist：页面、样式、ES 模块、${Object.keys(runtimeModels.groups).length} 组运行时模型、本地 Chart.js 及深度计算卡图标。`);
