@@ -84,14 +84,14 @@ export function createModelLoader({
 } = {}) {
   if (typeof fetchImpl !== 'function') throw new TypeError('需要提供 fetch 实现');
   let modelsPromise;
-  async function loadModels() {
+  function loadModels() {
     if (!modelsPromise) {
       modelsPromise = (async () => {
         const response = await fetchImpl(modelsUrl);
         if (!response?.ok) throw new Error(`读取运行时模型失败：HTTP ${response?.status ?? '未知'}`);
         const models = await response.json();
         validateRuntimeModels(models);
-        return models;
+        return { models, calculators: new Map() };
       })().catch((error) => {
         modelsPromise = null;
         throw error;
@@ -101,35 +101,38 @@ export function createModelLoader({
   }
 
   return async function loadModel(region, now) {
-    const models = await loadModels();
+    const currentModelsPromise = loadModels();
+    const { models, calculators } = await currentModelsPromise;
     const stage = selectStage(models.profiles, region, now);
     if (stage.status !== 'supported') return { status: stage.status, region, stage };
     const entry = models.groups[String(stage.group)];
-    const modelGroup = entry?.model?.group ?? entry?.model?.source_version?.group_key;
-    const modelCap = entry?.model?.cap ?? entry?.model?.source_version?.current_quality_cap;
-    const probabilityGroup = entry?.probabilities?.group ?? entry?.probabilities?.source?.group_key;
-    const probabilityCap = entry?.probabilities?.cap ?? entry?.probabilities?.source?.current_cap;
+    const modelGroup = entry?.model?.group;
+    const modelCap = entry?.model?.cap;
+    const probabilityGroup = entry?.probabilities?.group;
+    const probabilityCap = entry?.probabilities?.cap;
     if (!entry || modelGroup !== stage.group || modelCap !== stage.cap
         || probabilityGroup !== stage.group || probabilityCap !== stage.cap) {
+      calculators.delete(String(stage.group));
+      if (modelsPromise === currentModelsPromise) modelsPromise = null;
       stage.status = 'unsupported';
       return { status: 'unsupported', region, stage };
     }
-    const calculator = createCalculator(entry);
-    const storedProof = entry.lockProof;
-    if (!storedProof || storedProof.valid !== calculator.lockProof.valid
-        || !Number.isFinite(storedProof.minAdvantage)
-        || Math.abs(storedProof.minAdvantage - calculator.lockProof.minAdvantage) > 1e-7) {
-      throw new TypeError(`组 ${stage.group} 的锁定证明与当前概率或参考值不一致`);
+    const calculatorKey = String(stage.group);
+    let calculator = calculators.get(calculatorKey);
+    if (!calculator) {
+      try {
+        calculator = createCalculator(entry);
+      } catch (error) {
+        if (modelsPromise === currentModelsPromise) modelsPromise = null;
+        throw error;
+      }
+      calculators.set(calculatorKey, calculator);
     }
     return {
       status: 'ready',
       region,
       stage,
-      model: entry.model,
-      probabilities: entry.probabilities,
-      reference: entry.reference,
       calculator,
-      lockProof: calculator.lockProof,
     };
   };
 }

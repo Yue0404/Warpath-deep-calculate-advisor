@@ -1,21 +1,9 @@
 const TOLERANCE = 1e-8;
+export const OUTCOME_DELTAS = Object.freeze([-2, -1, 0, 1, 2]);
+export const CALCULATION_COSTS = Object.freeze({ ordinary: 5, locked: 20 });
 
 function fail(message) {
   throw new TypeError(`计算器数据无效：${message}`);
-}
-
-function combinations(cap) {
-  const states = [];
-  for (let a = 0; a <= cap; a += 1) {
-    for (let b = a; b <= cap; b += 1) {
-      for (let c = b; c <= cap; c += 1) states.push([a, b, c]);
-    }
-  }
-  return states;
-}
-
-function expectedStateCount(cap) {
-  return ((cap + 1) * (cap + 2) * (cap + 3)) / 6;
 }
 
 function sortedState(state, cap, label) {
@@ -31,10 +19,11 @@ function sortedState(state, cap, label) {
 }
 
 function validateData(model, probabilities, reference) {
-  const group = model?.group ?? model?.source_version?.group_key;
-  const cap = model?.cap ?? model?.source_version?.current_quality_cap;
-  const probabilityGroup = probabilities?.group ?? probabilities?.source?.group_key;
-  const probabilityCap = probabilities?.cap ?? probabilities?.source?.current_cap;
+  if (!model || !probabilities || !reference) fail('模型、概率或参考表缺失');
+  const group = model.group;
+  const cap = model.cap;
+  const probabilityGroup = probabilities.group;
+  const probabilityCap = probabilities.cap;
   const rows = probabilities?.rows;
   const weightScale = probabilities?.weight_scale;
   if (!Number.isInteger(group) || group < 0 || !Number.isInteger(cap) || cap < 1) {
@@ -48,36 +37,26 @@ function validateData(model, probabilities, reference) {
   if (probabilityGroup !== group || probabilityCap !== cap) {
     fail('概率数据的分组或品级上限与模型不匹配');
   }
-  const hasModelSource = model.source_version && typeof model.source_version === 'object';
-  const hasProbabilitySource = probabilities.source && typeof probabilities.source === 'object';
-  if (hasModelSource !== hasProbabilitySource) fail('模型与概率数据的分组元数据格式不匹配');
-  if (hasModelSource) {
-    for (const key of ['game_version', 'package_version', 'runtime_update_version']) {
-      if (model.source_version[key] !== probabilities.source[key]) {
-        fail(`模型与概率数据的版本字段 ${key} 不匹配`);
-      }
-    }
-    if (model.source_version.group_key !== group
-        || model.source_version.current_quality_cap !== cap
-        || probabilities.source.group_key !== group
-        || probabilities.source.current_cap !== cap) {
-      fail('模型与概率数据的组号或品级上限不匹配');
-    }
+  if (Object.hasOwn(model, 'source_version') || Object.hasOwn(model, 'mechanics_from_configuration')
+      || Object.hasOwn(probabilities, 'source')) {
+    fail('只支持公开模型格式');
   }
-  if ((reference.group !== undefined && reference.group !== group)
-      || (reference.cap !== undefined && reference.cap !== cap)) {
+  if (reference.group !== group || reference.cap !== cap) {
     fail('参考值分组或品级上限与模型不匹配');
   }
-  const mechanics = model.mechanics ?? model.mechanics_from_configuration;
-  if (mechanics?.ordinary_deep_calculation_chip_cost !== 5
-      || mechanics?.lock_one_attribute_chip_cost !== 20) {
+  const mechanics = model.mechanics;
+  if (mechanics?.ordinary_deep_calculation_chip_cost !== CALCULATION_COSTS.ordinary
+      || mechanics?.lock_one_attribute_chip_cost !== CALCULATION_COSTS.locked) {
     fail('计算成本必须为 5 与 20');
   }
-  if (!Number.isInteger(weightScale) || weightScale < 1 || rows?.length !== cap + 1) {
+  if (!Number.isInteger(weightScale) || weightScale < 1 || !Array.isArray(rows)
+      || rows.length !== cap + 1) {
     fail('概率上限、行数或权重刻度不正确');
   }
-  rows.forEach((row, index) => {
-    if (row.quality_index !== index || row.row_total_weight !== weightScale) {
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index];
+    if (!row || typeof row !== 'object'
+        || row.quality_index !== index || row.row_total_weight !== weightScale) {
       fail(`概率行 ${index} 未按索引排序或权重总和不正确`);
     }
     const entries = Object.entries(row.absolute_outcome_weights ?? {});
@@ -88,7 +67,7 @@ function validateData(model, probabilities, reference) {
       total += weight;
     }
     if (total !== weightScale) fail(`概率行 ${index} 权重不等于 ${weightScale}`);
-    const deltas = new Map([[-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0]]);
+    const deltas = new Map(OUTCOME_DELTAS.map((delta) => [delta, 0]));
     for (const [outcome, weight] of entries) {
       const delta = Number(outcome) - index;
       if (!deltas.has(delta)) fail(`概率行 ${index} 的结果超出 -2 到 +2 品`);
@@ -97,8 +76,8 @@ function validateData(model, probabilities, reference) {
     for (const [delta, weight] of deltas) {
       if (row.delta_weights?.[String(delta)] !== weight) fail(`概率行 ${index} 的变化权重与绝对结果不一致`);
     }
-  });
-  const stateCount = expectedStateCount(cap);
+  }
+  const stateCount = ((cap + 1) * (cap + 2) * (cap + 3)) / 6;
   if (model.dynamic_program?.state_count !== stateCount
       || reference.stateCount !== stateCount || reference.states?.length !== stateCount) {
     fail(`模型状态数或状态表覆盖范围必须为 ${stateCount} 个排序状态`);
@@ -107,11 +86,22 @@ function validateData(model, probabilities, reference) {
   if (model.objective?.target_state?.join(',') !== target.join(',')
       || reference.target?.join(',') !== target.join(',') || reference.terminalValue !== 0
       || model.dynamic_program?.terminal_value_chips !== 0) fail('目标状态或终止值不匹配');
-  return { group, cap, rows, weightScale, states: combinations(cap), stateCount };
+  return {
+    group,
+    cap,
+    rows,
+    weightScale,
+    stateCount,
+    ordinaryCost: mechanics.ordinary_deep_calculation_chip_cost,
+    lockedCost: mechanics.lock_one_attribute_chip_cost,
+  };
 }
 
-export function createCalculator({ model, probabilities, reference }) {
-  const { cap, rows, weightScale, states, stateCount } = validateData(model, probabilities, reference);
+export function createCalculator(entry = {}) {
+  const { model, probabilities, reference } = entry ?? {};
+  const {
+    cap, rows, weightScale, stateCount, ordinaryCost, lockedCost,
+  } = validateData(model, probabilities, reference);
   const values = new Map();
   for (const state of reference.states) {
     if (!Array.isArray(state) || state.length !== 4) fail('参考状态格式错误');
@@ -122,69 +112,13 @@ export function createCalculator({ model, probabilities, reference }) {
     }
     values.set(key, state[3]);
   }
-  if (values.size !== stateCount || states.some((state) => !values.has(state.join(',')))) {
+  if (values.size !== stateCount) {
     fail(`参考表必须覆盖全部 ${stateCount} 个排序状态`);
   }
   const targetKey = Array(3).fill(cap).join(',');
   if (values.get(targetKey) !== 0) fail('目标状态的参考值必须为 0');
   const probabilityOf = (from, to) => (rows[from].absolute_outcome_weights[String(to)] ?? 0) / weightScale;
   const referenceValue = (state) => values.get(sortedState(state, cap, '状态').join(','));
-
-  let worstResidual = 0;
-  let worstState = null;
-  for (const state of states) {
-    const stateKey = state.join(',');
-    const currentValue = values.get(stateKey);
-    if (stateKey === targetKey) continue;
-    let expectedFuture = 0;
-    for (const [a, weightA] of Object.entries(rows[state[0]].absolute_outcome_weights)) {
-      for (const [b, weightB] of Object.entries(rows[state[1]].absolute_outcome_weights)) {
-        for (const [c, weightC] of Object.entries(rows[state[2]].absolute_outcome_weights)) {
-          const nextKey = [Number(a), Number(b), Number(c)].sort((x, y) => x - y).join(',');
-          expectedFuture += (weightA * weightB * weightC) / (weightScale ** 3)
-            * Math.min(currentValue, values.get(nextKey));
-        }
-      }
-    }
-    const residual = Math.abs(currentValue - (5 + expectedFuture));
-    if (residual > worstResidual) {
-      worstResidual = residual;
-      worstState = stateKey;
-    }
-  }
-  if (worstResidual >= 1e-7) fail(`参考值与当前概率表不一致，状态 ${worstState} 的 Bellman 残差为 ${worstResidual}`);
-
-  let minLockAdvantage = Infinity;
-  let lockCounterexample = null;
-  for (const state of states) {
-    if (state.join(',') === targetKey) continue;
-    const currentValue = values.get(state.join(','));
-    for (let lockedIndex = 0; lockedIndex < 3; lockedIndex += 1) {
-      const moving = [0, 1, 2].filter((index) => index !== lockedIndex);
-      let expected = 0;
-      for (const [a, weightA] of Object.entries(rows[state[moving[0]]].absolute_outcome_weights)) {
-        for (const [b, weightB] of Object.entries(rows[state[moving[1]]].absolute_outcome_weights)) {
-          const next = [...state];
-          next[moving[0]] = Number(a);
-          next[moving[1]] = Number(b);
-          const nextValue = values.get(next.sort((x, y) => x - y).join(','));
-          expected += (weightA * weightB) / (weightScale ** 2)
-            * Math.min(currentValue, nextValue);
-        }
-      }
-      const advantage = 20 + expected - currentValue;
-      if (advantage < minLockAdvantage) minLockAdvantage = advantage;
-      if (advantage < -1e-8 && (!lockCounterexample || advantage < lockCounterexample.difference)) {
-        lockCounterexample = { state, lockedIndex, difference: advantage };
-      }
-    }
-  }
-  const lockProof = {
-    valid: lockCounterexample === null,
-    minAdvantage: minLockAdvantage,
-    counterexample: lockCounterexample,
-    method: '逐个非终止排序状态、逐个锁定位计算 Q_lock=20+E[min(V(s),V(t))]，与独立求得的无锁V(s)比较。',
-  };
 
   function evaluate(current, next, lockedIndex = null) {
     const currentSorted = sortedState(current, cap, '当前状态');
@@ -209,36 +143,12 @@ export function createCalculator({ model, probabilities, reference }) {
   return {
     cap,
     stateCount,
-    ordinaryCost: 5,
-    lockedCost: 20,
+    ordinaryCost,
+    lockedCost,
     model,
     probabilities,
     reference,
     value: referenceValue,
     evaluate,
-    worstBellmanResidual: worstResidual,
-    worstResidualState: worstState,
-    lockProof,
   };
-}
-
-export function bellmanResidual(calculator, state) {
-  const currentValue = calculator.value(state);
-  if (state.every((quality) => quality === calculator.cap)) return currentValue;
-  let expected = 0;
-  const rows = calculator.probabilities.rows;
-  const scale = calculator.probabilities.weight_scale;
-  for (const [a, wa] of Object.entries(rows[state[0]].absolute_outcome_weights)) {
-    for (const [b, wb] of Object.entries(rows[state[1]].absolute_outcome_weights)) {
-      for (const [c, wc] of Object.entries(rows[state[2]].absolute_outcome_weights)) {
-        const next = [Number(a), Number(b), Number(c)].sort((x, y) => x - y);
-        expected += (wa * wb * wc) / (scale ** 3) * Math.min(currentValue, calculator.value(next));
-      }
-    }
-  }
-  return currentValue - (calculator.ordinaryCost + expected);
-}
-
-export function possibleOutcomes(probabilities, quality) {
-  return Object.keys(probabilities.rows[quality].absolute_outcome_weights).map(Number);
 }

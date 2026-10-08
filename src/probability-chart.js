@@ -32,8 +32,7 @@ function loadChartLibrary() {
   return chartLibraryPromise;
 }
 
-/** 建立按需加载的概率查看器；图表依赖仅在用户打开窗口时请求。 */
-export function createProbabilityViewer({ translate }) {
+export function createProbabilityViewer({ translate, chartLibraryLoader = loadChartLibrary }) {
   const button = document.getElementById('view-probabilities');
   const dialog = document.getElementById('probability-dialog');
   const title = document.getElementById('probability-title');
@@ -58,7 +57,7 @@ export function createProbabilityViewer({ translate }) {
     const label = document.createElement('span');
     item.append(swatch, label);
     legend.append(item);
-    return { key, item, label };
+    return { key, label };
   });
   chartFrame.before(legend);
 
@@ -79,6 +78,8 @@ export function createProbabilityViewer({ translate }) {
 
   let model = null;
   let chart = null;
+  let chartPhase = 'idle';
+  let chartRequest = 0;
 
   function destroyChart() {
     chart?.destroy();
@@ -144,18 +145,39 @@ export function createProbabilityViewer({ translate }) {
     tableHost.replaceChildren(table);
   }
 
-  function updateLabels() {
-    title.textContent = translate('probabilityTitle');
-    const captionDescription = `${translate('probabilityCaption')} ${translate('probabilityConfig', { group: model.group, cap: model.cap })}`;
-    details.querySelector('summary').textContent = translate('probabilityTable');
-    closeButton.textContent = translate('close');
-    retryButton.textContent = translate('probabilityChartRetry');
+  function renderLegendLabels() {
     legend.setAttribute('aria-label', translate('probabilityTitle'));
     legendItems.forEach(({ key, label }) => { label.textContent = translate(key); });
-    canvas.setAttribute('aria-label', `${translate('probabilityTitle')}. ${captionDescription}`);
-    if (status.hidden) status.textContent = '';
-    else status.textContent = translate('probabilityChartLoadError');
-    renderTable();
+  }
+
+  function renderChartPhase() {
+    const loading = chartPhase === 'loading';
+    const failed = chartPhase === 'error';
+    const ready = chartPhase === 'ready';
+
+    chartFrame.hidden = loading || failed;
+    legend.hidden = !ready;
+    status.hidden = !loading && !failed;
+    status.textContent = loading
+      ? translate('loading')
+      : failed ? translate('probabilityChartLoadError') : '';
+    retryButton.hidden = !failed;
+    retryButton.textContent = translate('probabilityChartRetry');
+  }
+
+  function updateLabels() {
+    title.textContent = translate('probabilityTitle');
+    details.querySelector('summary').textContent = translate('probabilityTable');
+    closeButton.textContent = translate('close');
+    renderLegendLabels();
+    if (model) {
+      const captionDescription = `${translate('probabilityCaption')} ${translate('probabilityConfig', { group: model.group, cap: model.cap })}`;
+      canvas.setAttribute('aria-label', `${translate('probabilityTitle')}. ${captionDescription}`);
+      renderTable();
+    } else {
+      canvas.setAttribute('aria-label', translate('probabilityTitle'));
+    }
+    renderChartPhase();
     if (chart) {
       chart.data.datasets = translatedSeries();
       chart.options.scales.x.title.text = probabilityAxisLabel();
@@ -165,13 +187,10 @@ export function createProbabilityViewer({ translate }) {
   }
 
   function createChart(Chart) {
-    destroyChart();
     const labels = model.rows.map(({ quality }) => String(quality));
     chartFrame.style.setProperty('--probability-chart-min-width', `${labels.length * 22}px`);
-    chartFrame.hidden = false;
-    legend.hidden = false;
-    status.hidden = true;
-    retryButton.hidden = true;
+    chartPhase = 'ready';
+    renderChartPhase();
     chart = new Chart(canvas, {
       type: 'bar',
       data: { labels, datasets: translatedSeries() },
@@ -214,65 +233,60 @@ export function createProbabilityViewer({ translate }) {
   }
 
   async function showChart() {
-    chartFrame.hidden = true;
-    legend.hidden = true;
-    status.textContent = translate('loading');
-    status.hidden = false;
-    retryButton.hidden = true;
+    if (!model || !dialog.open) return;
+    const request = ++chartRequest;
+    destroyChart();
+    chartPhase = 'loading';
+    renderChartPhase();
     try {
-      const Chart = await loadChartLibrary();
-      if (!model || !dialog.open) return;
+      const Chart = await chartLibraryLoader();
+      if (request !== chartRequest || !model || !dialog.open) return;
       createChart(Chart);
     } catch {
-      if (!dialog.open || !model) return;
-      status.textContent = translate('probabilityChartLoadError');
-      status.hidden = false;
-      chartFrame.hidden = true;
-      legend.hidden = true;
+      if (request !== chartRequest || !dialog.open || !model) return;
+      chartPhase = 'error';
+      renderChartPhase();
       details.open = true;
-      retryButton.textContent = translate('probabilityChartRetry');
-      retryButton.hidden = false;
     }
   }
 
   button.addEventListener('click', () => {
     if (!model) return;
-    dialog.showModal();
-    updateLabels();
+    if (!dialog.open) dialog.showModal();
     showChart();
   });
   closeButton.addEventListener('click', () => dialog.close());
   retryButton.addEventListener('click', showChart);
-  dialog.addEventListener('close', destroyChart);
+  dialog.addEventListener('close', () => {
+    if (dialog.open) return;
+    chartRequest += 1;
+    destroyChart();
+    chartPhase = 'idle';
+    renderChartPhase();
+  });
 
   function setModel(probabilities) {
     destroyChart();
     if (probabilities === null) {
+      chartRequest += 1;
       model = null;
       button.disabled = true;
       if (dialog.open) dialog.close();
       tableHost.replaceChildren();
-      chartFrame.hidden = false;
-      legend.hidden = true;
-      status.hidden = true;
-      retryButton.hidden = true;
+      chartPhase = 'idle';
+      renderChartPhase();
+      renderLanguage();
       return;
     }
     model = normalizeProbabilityData(probabilities);
     button.disabled = false;
-    updateLabels();
+    renderLanguage();
     if (dialog.open) showChart();
   }
 
   function renderLanguage() {
-    if (model) updateLabels();
-    else {
-      title.textContent = translate('probabilityTitle');
-      closeButton.textContent = translate('close');
-      retryButton.textContent = translate('probabilityChartRetry');
-      legend.setAttribute('aria-label', translate('probabilityTitle'));
-      legendItems.forEach(({ key, label }) => { label.textContent = translate(key); });
-    }
+    button.textContent = translate('viewProbabilities');
+    updateLabels();
   }
 
   return { setModel, renderLanguage };

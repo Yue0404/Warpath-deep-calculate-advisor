@@ -1,13 +1,12 @@
-// 国际化文本与浏览器语言识别。
 export const languages = [
   {
-    "code": "zh-CN",
+    "code": "zh-Hans",
     "name": "简体中文",
     "dir": "ltr",
     "flag": "cn"
   },
   {
-    "code": "zh-TW",
+    "code": "zh-Hant",
     "name": "繁體中文",
     "dir": "ltr",
     "flag": "tw"
@@ -111,7 +110,7 @@ export const languages = [
 ];
 
 export const messages = {
-  "zh-CN": {
+  "zh-Hans": {
     "title": "深度计算器",
     "language": "语言",
     "current": "当前品阶",
@@ -175,7 +174,7 @@ export const messages = {
     "probabilityChartLoadError": "概率图加载失败，仍可查阅下方概率数值。",
     "probabilityChartRetry": "重试加载图表"
   },
-  "zh-TW": {
+  "zh-Hant": {
     "title": "深度計算器",
     "language": "語言",
     "current": "目前品階",
@@ -1265,23 +1264,34 @@ export const messages = {
   }
 };
 
+export function normalizeLocale(locale) {
+  if (typeof locale !== 'string') return null;
+
+  const normalized = locale.replaceAll('_', '-').toLowerCase();
+  if (/^zh(?:-|$)/.test(normalized)) {
+    const explicitScript = /^zh-(hans|hant)(?:-|$)/.exec(normalized)?.[1];
+    if (explicitScript === 'hans') return 'zh-Hans';
+    if (explicitScript === 'hant') return 'zh-Hant';
+    if (/^zh-(?:hant|tw|hk|mo)(?:-|$)/.test(normalized)) return 'zh-Hant';
+    if (/^zh-(?:hans|cn|sg|my)(?:-|$)/.test(normalized)) return 'zh-Hans';
+    return 'zh-Hans';
+  }
+
+  const base = normalized.split('-')[0];
+  return Object.hasOwn(messages, base) ? base : null;
+}
+
 export function detectLanguage(browserLanguages = []) {
   for (const raw of browserLanguages) {
     if (typeof raw !== 'string') continue;
-    const normalized = raw.replace('_','-').toLowerCase();
-    if (normalized.startsWith('zh-')) {
-      if (/zh-(hant|tw|hk|mo)/i.test(normalized)) return 'zh-TW';
-      if (/zh-(hans|cn|sg|my)/i.test(normalized)) return 'zh-CN';
-    }
-    const base = normalized.split('-')[0];
-    if (base === 'zh') return 'zh-CN';
-    if (messages[base]) return base;
+    const locale = normalizeLocale(raw);
+    if (locale) return locale;
   }
   return 'en';
 }
 
 export function translate(code, key, values = {}) {
   const dictionary = messages[code];
-  if (!dictionary || !Object.hasOwn(dictionary, key)) throw new Error(`Missing translation: ${code}.${key}`);
+  if (!dictionary || !Object.hasOwn(dictionary, key)) throw new Error(`缺少翻译包: ${code}.${key}`);
   return dictionary[key].replace(/\{([a-zA-Z][\w]*)\}/g, (match, name) => Object.hasOwn(values, name) ? String(values[name]) : match);
 }

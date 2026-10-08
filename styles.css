@@ -185,12 +185,13 @@ html[dir="rtl"] .language-select-shell #language::after {
 }
 
 #language-options[popover] {
+  --language-options-max-height: min(70vh, 26rem);
   position: fixed;
   inset: auto;
   z-index: 20;
   width: min(260px, calc(100vw - 24px));
   max-width: calc(100vw - 24px);
-  max-height: min(70vh, 26rem);
+  max-height: var(--language-options-max-height);
   margin: 0;
   overflow-x: hidden;
   overflow-y: auto;
@@ -557,8 +558,8 @@ html[lang^="zh"] .attribute-label {
 .quality-field > .quality-error {
   position: fixed;
   z-index: 30;
-  left: 12px;
-  top: 12px;
+  left: 0;
+  top: 0;
   box-sizing: border-box;
   width: max-content;
   max-width: min(320px, calc(100vw - 24px));
@@ -577,23 +578,21 @@ html[lang^="zh"] .attribute-label {
   pointer-events: none;
 }
 
-.quality-error::after {
+.quality-error-arrow {
   position: absolute;
-  left: var(--arrow-x);
   width: 8px;
   height: 8px;
   background: #302626;
-  content: "";
-  transform: translateX(-50%) rotate(45deg);
+  transform: rotate(45deg);
 }
 
-.quality-error.quality-error-above::after {
+.quality-error[data-placement^="top"] .quality-error-arrow {
   bottom: -5px;
   border-right: 1px solid var(--input-error);
   border-bottom: 1px solid var(--input-error);
 }
 
-.quality-error:not(.quality-error-above)::after {
+.quality-error[data-placement^="bottom"] .quality-error-arrow {
   top: -5px;
   border-top: 1px solid var(--input-error);
   border-left: 1px solid var(--input-error);
