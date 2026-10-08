@@ -105,6 +105,9 @@ a:hover {
   align-items: center;
   gap: 8px 12px;
   max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 10px 12px;
 }
 
 .language {
@@ -295,7 +298,7 @@ html[dir="rtl"] .language-select-shell #language::after {
 
 .brand {
   width: 100%;
-  margin-top: 8px;
+  margin-top: 24px;
   text-align: center;
 }
 
@@ -949,7 +952,8 @@ footer a {
 }
 
 dialog#lock-dialog {
-  width: min(480px, calc(100% - 32px));
+  box-sizing: border-box;
+  width: min(360px, calc(100% - 48px));
   max-width: 100%;
   margin: auto;
   border: 1px solid var(--line);
@@ -1012,6 +1016,8 @@ dialog#lock-dialog.is-visible::backdrop {
 
 #lock-continue {
   min-width: 112px;
+  display: block;
+  margin-inline: auto;
 }
 
 [hidden] {
@@ -1054,7 +1060,7 @@ select:disabled {
   }
 
   .brand {
-    margin-top: 4px;
+    margin-top: 20px;
   }
 
   h1 {
