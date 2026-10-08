@@ -3,6 +3,7 @@ import { languages, detectLanguage, translate } from './i18n.js';
 import { loadModel } from './model-loader.js';
 import { createNetworkClock } from './network-time.js';
 import { resolveBrowserPreference, resolveInitialServer, shouldShowServerWelcome } from './preferences.js';
+import { createProbabilityViewer } from './probability-chart.js';
 import { renderRecommendation } from './viewer.js';
 
 const $ = (id) => document.getElementById(id);
@@ -37,11 +38,13 @@ let resultQualities = null;
 let current = [0, 0, 0];
 let deltas = ['', '', ''];
 let mode = '';
+let selectedLockedIndex = null;
 let pendingMode = '';
 let closingDialog = false;
 let returnFocusAfterLanguageClose = false;
 const t = (key, values) => translate(locale, key, values);
-const lockedIndex = () => mode === '' ? null : Number(mode);
+const probabilityViewer = createProbabilityViewer({ translate: t });
+const lockedIndex = () => mode === 'two' ? selectedLockedIndex : null;
 const resultAt = (index, rawCurrent = current[index], rawDelta = deltas[index]) => deriveResult(
   rawCurrent, rawDelta, calculator.cap, lockedIndex() === index,
 );
@@ -69,6 +72,7 @@ function renderLanguage() {
     ? 'cn' : languages.find(({ code }) => code === locale)?.flag;
   if (flag && $('language-flag')) $('language-flag').src = new URL(`../flags/${flag.toLowerCase()}.svg`, import.meta.url).href;
   renderLanguageOptions();
+  probabilityViewer.renderLanguage();
   $('server-control').hidden = !showServerControl;
   if ($('time-status')) renderTimeStatus();
   if (calculator) renderInputs();
@@ -169,7 +173,23 @@ function renderInputs() {
     row.className = 'quality-row';
     const name = document.createElement('span');
     name.className = 'attribute-name';
-    name.textContent = t(names[index]);
+    const label = document.createElement('span');
+    label.className = 'attribute-label';
+    label.textContent = t(names[index]);
+    name.append(label);
+    if (mode === 'two' && (selectedLockedIndex === null || selectedLockedIndex === index)) {
+      const toggle = document.createElement('button');
+      const isLocked = selectedLockedIndex === index;
+      toggle.type = 'button';
+      toggle.className = 'lock-toggle';
+      toggle.dataset.lockIndex = String(index);
+      toggle.setAttribute('aria-label', t(isLocked ? 'unlockAttribute' : 'lockAttribute', { n: index + 1 }));
+      toggle.setAttribute('aria-pressed', String(isLocked));
+      toggle.innerHTML = isLocked
+        ? '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>'
+        : '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 7-2.6M12 14v3"/></svg>';
+      name.append(toggle);
+    }
 
     const currentField = document.createElement('div');
     currentField.className = 'quality-field';
@@ -191,9 +211,13 @@ function renderInputs() {
     row.append(name, currentField, deltaField, resultField);
     $('quality-rows').append(row);
   }
-  $('mode').replaceChildren(new Option(t('all', { cost: calculator.ordinaryCost }), ''));
-  for (let index = 0; index < 3; index++) $('mode').add(new Option(t('lock', { n: index + 1, cost: calculator.lockedCost }), String(index)));
+  $('mode').replaceChildren(
+    new Option(t('all', { cost: calculator.ordinaryCost }), ''),
+    new Option(t('two', { cost: calculator.lockedCost }), 'two'),
+  );
   $('mode').value = mode;
+  const lockHint = $('lock-selection-hint');
+  if (lockHint) lockHint.hidden = mode !== 'two' || selectedLockedIndex !== null;
 }
 
 function completeState() {
@@ -201,19 +225,17 @@ function completeState() {
 }
 
 function renderStageStatus() {
-  const element = $('stage-status');
-  if (!modelState?.stage) {
-    element.hidden = true;
-    element.textContent = '';
+  const element = $('load-status');
+  if (!element || !modelState?.stage) {
     return;
   }
   const { status, stage } = modelState;
-  const statusText = status === 'ready'
-    ? t('stageStatus', { group: stage.group, cap: stage.cap, gameDate: stage.gameDate })
-    : status === 'not_open'
-      ? t('stageNotOpen')
-      : t('stageUnsupported', { group: stage.group });
-  element.textContent = statusText;
+  if (status === 'ready') {
+    element.textContent = '';
+    element.hidden = true;
+    return;
+  }
+  element.textContent = status === 'not_open' ? t('stageNotOpen') : t('stageUnsupported', { group: stage.group });
   element.hidden = false;
 }
 
@@ -284,6 +306,7 @@ function resetQualityState() {
   current = [0, 0, 0];
   deltas = ['', '', ''];
   mode = '';
+  selectedLockedIndex = null;
   decision = null;
   resultQualities = null;
   $('form-error').hidden = true;
@@ -324,6 +347,7 @@ async function checkStageBoundary() {
   renderTimeStatus();
   if (!clockSync.ok && !networkClock.isReady()) {
     calculator = null;
+    probabilityViewer.setModel(null);
     modelState = null;
     decision = null;
     resultQualities = null;
@@ -361,11 +385,11 @@ async function loadCurrentModel() {
   $('form-error').hidden = true;
   if (!calculator) {
     modelState = null;
+    probabilityViewer.setModel(null);
     decision = null;
     resultQualities = null;
     $('quality-rows').replaceChildren();
     $('mode').replaceChildren();
-    $('stage-status').hidden = true;
     updateRecommendation();
   }
   let boundaryMissed = false;
@@ -385,6 +409,7 @@ async function loadCurrentModel() {
     appliedGroup = group;
     modelState = loaded;
     calculator = loaded.status === 'ready' ? loaded.calculator : null;
+    probabilityViewer.setModel(calculator?.probabilities ?? null);
     $('load-status').hidden = true;
     if (calculator) {
       $('inputs').disabled = false;
@@ -405,13 +430,13 @@ async function loadCurrentModel() {
     if (sequence !== loadSequence || requestedRegion !== region) return;
     if (networkClock.isReady()) console.error('模型加载失败', error);
     calculator = null;
+    probabilityViewer.setModel(null);
     modelState = null;
     decision = null;
     resultQualities = null;
     $('inputs').disabled = true;
     $('quality-rows').replaceChildren();
     $('mode').replaceChildren();
-    $('stage-status').hidden = true;
     $('load-status').textContent = networkClock.isReady() ? t('loadError') : t('timeError');
     $('retry').hidden = false;
     renderTimeStatus();
@@ -431,9 +456,9 @@ function selectRegion() {
   storage.set('warpath-server', region);
   resetQualityState();
   calculator = null;
+  probabilityViewer.setModel(null);
   modelState = null;
   $('inputs').disabled = true;
-  $('stage-status').hidden = true;
   loadCurrentModel();
 }
 
@@ -469,7 +494,10 @@ function closeLockDialog(applyPending) {
     if (fallbackTimer !== undefined) clearTimeout(fallbackTimer);
     if (dialog.open) dialog.close();
     closingDialog = false;
-    if (applyPending) clearResults();
+    if (applyPending) {
+      if (pendingMode === 'two') selectedLockedIndex = null;
+      clearResults();
+    }
     $('mode').focus();
   };
   const onTransitionEnd = (event) => {
@@ -558,17 +586,31 @@ $('quality-rows').addEventListener('change', (event) => {
 });
 $('mode').addEventListener('change', (event) => {
   const nextMode = event.target.value;
-  if (nextMode !== '' && !['0', '1', '2'].includes(nextMode)) {
+  if (nextMode !== '' && nextMode !== 'two') {
     event.target.value = mode;
     showFormError('invalidChange');
     return;
   }
-  if (nextMode !== '' && nextMode !== mode) requestLock(nextMode);
-  else { mode = nextMode; clearResults(); }
+  if (nextMode === mode) return;
+  if (nextMode === 'two') requestLock(nextMode);
+  else {
+    mode = '';
+    selectedLockedIndex = null;
+    clearResults();
+  }
+});
+$('quality-rows').addEventListener('click', (event) => {
+  const toggle = event.target.closest('button.lock-toggle');
+  if (!toggle || mode !== 'two') return;
+  const index = Number(toggle.dataset.lockIndex);
+  if (!Number.isInteger(index) || index < 0 || index > 2) return;
+  selectedLockedIndex = selectedLockedIndex === index ? null : index;
+  clearResults();
+  $('quality-rows').querySelector(`button.lock-toggle[data-lock-index="${index}"]`)?.focus();
 });
 $('lock-continue').addEventListener('click', () => closeLockDialog(true));
 $('lock-dialog').addEventListener('cancel', (event) => {
-  // ESC 按钮按“继续”处理，确保隐藏的对话框不会留下未确认的选择。
+  // 按 ESC 时继续确认流程，避免隐藏的对话框留下未确认的选择。
   event.preventDefault();
   closeLockDialog(true);
 });
@@ -579,6 +621,12 @@ $('server-welcome-dialog').addEventListener('close', () => {
 $('calculator-form').addEventListener('submit', (event) => {
   event.preventDefault();
   if (!calculator || $('inputs').disabled) return;
+  if (mode === 'two' && selectedLockedIndex === null) {
+    const lockHint = $('lock-selection-hint');
+    if (lockHint) lockHint.hidden = false;
+    $('quality-rows').querySelector('button.lock-toggle')?.focus();
+    return;
+  }
   const inputs = [0, 1, 2].map((index) => $(`current-${index}`));
   const parsed = inputs.map((input) => parseQuality(input.value, calculator.cap));
   if (parsed.some((entry) => !entry.valid)) {
@@ -614,6 +662,7 @@ $('reset').addEventListener('click', () => {
   if ($('lock-dialog').open) closeLockDialog(false);
   current = [0, 0, 0];
   mode = '';
+  selectedLockedIndex = null;
   clearResults();
 });
 $('apply').addEventListener('click', acceptWashResult);
