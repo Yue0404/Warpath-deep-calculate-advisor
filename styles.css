@@ -7,6 +7,7 @@
   --muted: #a9bdcb;
   --line: #46515b;
   --warning: #e9c49b;
+  --input-error: #ef7b83;
   --accept: #80d6a4;
   --discard: #f28e96;
   font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
@@ -424,6 +425,10 @@ html[lang^="zh"] h1 {
   word-break: normal;
 }
 
+html[lang^="zh"] .attribute-label {
+  line-height: 1.35;
+}
+
 .lock-toggle {
   display: grid;
   width: 32px;
@@ -482,6 +487,15 @@ html[lang^="zh"] h1 {
   outline-offset: 2px;
 }
 
+.quality-field.has-error {
+  border-color: var(--input-error);
+  box-shadow: 0 0 0 1px var(--input-error);
+}
+
+.quality-field.has-error:focus-within {
+  outline-color: var(--input-error);
+}
+
 .quality-field input,
 .quality-field select,
 .quality-field output {
@@ -520,26 +534,66 @@ html[lang^="zh"] h1 {
   text-align: center;
 }
 
-.lock-selection-hint {
-  margin: 0;
-  border-top: 1px solid var(--line);
-  padding: 11px 16px 0;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.55;
-  overflow-wrap: anywhere;
-}
-
 .quality-field > input {
   width: auto;
   min-width: 0;
   flex: 1 1 auto;
 }
 
+.quality-field input::placeholder {
+  color: #aeb9c0;
+  opacity: 1;
+}
+
 .quality-field > span {
   flex: none;
   font-size: 13px;
   white-space: nowrap;
+}
+
+.quality-field > .quality-error {
+  position: fixed;
+  z-index: 30;
+  left: 12px;
+  top: 12px;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 24px));
+  border: 1px solid var(--input-error);
+  border-radius: 7px;
+  padding: 8px 10px;
+  background: #302626;
+  box-shadow: 0 5px 18px rgb(0 0 0 / 35%);
+  color: #ffd6cf;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: start;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+
+.quality-error::after {
+  position: absolute;
+  left: var(--arrow-x);
+  width: 8px;
+  height: 8px;
+  background: #302626;
+  content: "";
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.quality-error.quality-error-above::after {
+  bottom: -5px;
+  border-right: 1px solid var(--input-error);
+  border-bottom: 1px solid var(--input-error);
+}
+
+.quality-error:not(.quality-error-above)::after {
+  top: -5px;
+  border-top: 1px solid var(--input-error);
+  border-left: 1px solid var(--input-error);
 }
 
 .quality-field input:focus-visible,
@@ -559,35 +613,43 @@ html[lang^="zh"] h1 {
 
 .form-actions {
   display: grid;
-  grid-template-columns: minmax(180px, 1.3fr) repeat(2, minmax(110px, 1fr));
-  align-items: end;
+  grid-template-columns: minmax(0, 1.3fr) repeat(2, minmax(110px, 1fr));
+  align-items: center;
   gap: 10px;
   border-top: 1px solid var(--line);
   padding: 14px 16px 16px;
 }
 
+.chip-cost {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.chip-cost[hidden] {
+  display: none;
+}
+
+.chip-cost img {
+  display: block;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  object-fit: contain;
+}
+
+.chip-cost span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .form-actions > button {
   width: 100%;
   min-width: 0;
-}
-
-.mode {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-.mode > span {
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.mode select {
-  width: 100%;
-  min-width: 0;
-  padding: 8px 12px;
-  font-size: 14px;
 }
 
 @media (min-width: 800px) {
@@ -597,22 +659,6 @@ html[lang^="zh"] h1 {
 
   html[lang^="zh"] h1 {
     letter-spacing: .3em;
-  }
-
-  .mode {
-    flex-direction: row;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .mode > span {
-    flex: none;
-    white-space: nowrap;
-  }
-
-  .mode select {
-    min-width: 0;
-    flex: 1;
   }
 
   .form-actions > button {
@@ -1072,10 +1118,6 @@ select:disabled {
     font-size: 13px;
   }
 
-  .lock-selection-hint {
-    padding-inline: 8px;
-  }
-
   .quality-field {
     height: 42px;
     min-height: 42px;
@@ -1096,13 +1138,20 @@ select:disabled {
   }
 
   .form-actions {
-    grid-template-columns: minmax(0, 1fr) repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 7px;
     padding: 11px 8px 10px;
   }
 
-  .mode {
+  .chip-cost {
     grid-column: 1 / -1;
+    font-size: 13px;
+  }
+
+  .chip-cost img {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
   }
 
   .form-actions button {
@@ -1160,6 +1209,17 @@ select:disabled {
   .form-actions {
     gap: 5px;
     padding-inline: 6px;
+  }
+
+  .chip-cost {
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .chip-cost img {
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
   }
 
   .form-actions button {

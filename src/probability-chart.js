@@ -38,12 +38,11 @@ export function createProbabilityViewer({ translate }) {
   const dialog = document.getElementById('probability-dialog');
   const title = document.getElementById('probability-title');
   const canvas = document.getElementById('probability-canvas');
-  const caption = document.getElementById('probability-caption');
   const details = document.getElementById('probability-data');
   const tableHost = document.getElementById('probability-table');
   const closeButton = document.getElementById('probability-close');
   const chartFrame = canvas?.closest('.probability-chart-frame');
-  if (![button, dialog, title, canvas, caption, details, tableHost, closeButton, chartFrame].every(Boolean)) {
+  if (![button, dialog, title, canvas, details, tableHost, closeButton, chartFrame].every(Boolean)) {
     throw new TypeError('概率图表界面缺少必要的 HTML 元素');
   }
 
@@ -93,8 +92,15 @@ export function createProbabilityViewer({ translate }) {
       borderColor: color,
       data: model.rows.map((row) => row.percentages[index]),
       stack: 'probability',
+      categoryPercentage: 0.7,
+      barPercentage: 0.65,
+      maxBarThickness: 24,
       borderWidth: 0,
     }));
+  }
+
+  function probabilityAxisLabel() {
+    return `${translate('probabilityAxis')} (${translate('quality')})`;
   }
 
   function formatPercent(value) {
@@ -140,19 +146,19 @@ export function createProbabilityViewer({ translate }) {
 
   function updateLabels() {
     title.textContent = translate('probabilityTitle');
-    caption.textContent = `${translate('probabilityCaption')} ${translate('probabilityConfig', { group: model.group, cap: model.cap })}`;
+    const captionDescription = `${translate('probabilityCaption')} ${translate('probabilityConfig', { group: model.group, cap: model.cap })}`;
     details.querySelector('summary').textContent = translate('probabilityTable');
     closeButton.textContent = translate('close');
     retryButton.textContent = translate('probabilityChartRetry');
     legend.setAttribute('aria-label', translate('probabilityTitle'));
     legendItems.forEach(({ key, label }) => { label.textContent = translate(key); });
-    canvas.setAttribute('aria-label', `${translate('probabilityTitle')}. ${caption.textContent}`);
+    canvas.setAttribute('aria-label', `${translate('probabilityTitle')}. ${captionDescription}`);
     if (status.hidden) status.textContent = '';
     else status.textContent = translate('probabilityChartLoadError');
     renderTable();
     if (chart) {
       chart.data.datasets = translatedSeries();
-      chart.options.scales.x.title.text = translate('probabilityAxis');
+      chart.options.scales.x.title.text = probabilityAxisLabel();
       chart.options.scales.y.title.text = translate('probabilityPercent');
       chart.update();
     }
@@ -180,17 +186,13 @@ export function createProbabilityViewer({ translate }) {
               label(context) {
                 return `${context.dataset.label}: ${formatPercent(context.parsed.y)}`;
               },
-              footer(items) {
-                const sum = items.reduce((total, item) => total + item.parsed.y, 0);
-                return `${translate('probabilityPercent')}: ${formatPercent(sum)}`;
-              },
             },
           },
         },
         scales: {
           x: {
             stacked: true,
-            title: { display: true, text: translate('probabilityAxis'), color: '#c5e3f5' },
+            title: { display: true, text: probabilityAxisLabel(), color: '#c5e3f5' },
           ticks: { color: '#c5e3f5', autoSkip: false, minRotation: 0, maxRotation: 0, font: { size: 10 } },
             grid: { color: 'rgba(197, 227, 245, 0.12)' },
           },
@@ -207,7 +209,6 @@ export function createProbabilityViewer({ translate }) {
             grid: { color: 'rgba(197, 227, 245, 0.18)' },
           },
         },
-        elements: { bar: { categoryPercentage: 1, barPercentage: 0.96 } },
       },
     });
   }
@@ -251,7 +252,6 @@ export function createProbabilityViewer({ translate }) {
       button.disabled = true;
       if (dialog.open) dialog.close();
       tableHost.replaceChildren();
-      caption.textContent = '';
       chartFrame.hidden = false;
       legend.hidden = true;
       status.hidden = true;

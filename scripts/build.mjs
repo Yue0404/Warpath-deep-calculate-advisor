@@ -10,6 +10,7 @@ const flags = path.join(root, 'flags');
 const flagLicense = path.join(flags, 'LICENSE');
 const chartPackage = path.join(root, 'node_modules', 'chart.js');
 const chartColorPackage = path.join(root, 'node_modules', '@kurkle', 'color');
+const deepCalculationCardPath = path.join(root, 'assets', 'deep-calculation-card.png');
 const dataFiles = ['model.json', 'probabilities.json', 'decision_reference.json'];
 const stageFile = 'stage_profiles.json';
 const groupedProbabilitiesFile = 'probabilities_by_group.json';
@@ -53,7 +54,13 @@ const indexPath = path.join(root, 'index.html');
 const stylesPath = path.join(root, 'styles.css');
 const appPath = path.join(root, 'src', 'app.js');
 const i18nPath = path.join(root, 'src', 'i18n.js');
-await Promise.all([stat(indexPath), stat(stylesPath), stat(appPath), stat(i18nPath)]);
+await Promise.all([
+  stat(indexPath),
+  stat(stylesPath),
+  stat(appPath),
+  stat(i18nPath),
+  stat(deepCalculationCardPath),
+]);
 const { languages, messages, translate } = await import('../src/i18n.js');
 const languageCodes = languages.map(({ code }) => code);
 if (languages.length !== 18 || new Set(languageCodes).size !== languages.length) {
@@ -98,6 +105,7 @@ await Promise.all([
   cp(path.join(root, 'src'), path.join(dist, 'src'), { recursive: true }),
   mkdir(path.join(dist, 'flags'), { recursive: true }),
   mkdir(path.join(dist, 'data'), { recursive: true }),
+  mkdir(path.join(dist, 'assets'), { recursive: true }),
   mkdir(path.join(dist, 'vendor'), { recursive: true }),
 ]);
 await Promise.all(dataFiles.map((name) => writeFile(path.join(dist, 'data', name), before.get(name))));
@@ -108,5 +116,6 @@ await Promise.all([
   cp(path.join(chartPackage, 'dist', 'chart.umd.js'), path.join(dist, 'vendor', 'chart.umd.js')),
   cp(path.join(chartPackage, 'LICENSE.md'), path.join(dist, 'vendor', 'chartjs-LICENSE.md')),
   cp(path.join(chartColorPackage, 'LICENSE.md'), path.join(dist, 'vendor', 'kurkle-color-LICENSE.md')),
+  cp(deepCalculationCardPath, path.join(dist, 'assets', 'deep-calculation-card.png')),
 ]);
-console.log('已生成 dist：页面、样式、ES 模块、既有数据、五组运行时模型及本地 Chart.js。');
+console.log('已生成 dist：页面、样式、ES 模块、既有数据、五组运行时模型、本地 Chart.js 及深度计算卡图标。');

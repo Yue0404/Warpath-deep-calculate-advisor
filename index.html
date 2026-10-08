@@ -45,9 +45,11 @@
         <fieldset id="inputs" disabled>
           <div class="table-head"><span aria-hidden="true"></span><h2 data-i18n="current">当前品阶</h2><h2 data-i18n="delta">洗练增减</h2><h2 data-i18n="result">新品阶</h2></div>
           <div id="quality-rows"></div>
-          <p id="lock-selection-hint" class="lock-selection-hint" data-i18n="chooseLock" hidden></p>
           <div class="form-actions">
-            <label class="mode"><span data-i18n="mode">洗练方式</span><select id="mode"></select></label>
+            <div id="chip-cost" class="chip-cost" aria-live="polite" hidden>
+              <img id="chip-cost-icon" src="./assets/deep-calculation-card.png" alt="" aria-hidden="true">
+              <span id="chip-cost-text"></span>
+            </div>
             <button type="button" id="reset" class="text-button" data-i18n="reset">重置</button>
             <button type="submit" class="primary" data-i18n="compare">计算</button>
           </div>
@@ -77,7 +79,6 @@
   <dialog id="probability-dialog" aria-labelledby="probability-title">
     <h2 id="probability-title" data-i18n="probabilityTitle">概率分布</h2>
     <div class="probability-chart-frame"><canvas id="probability-canvas"></canvas></div>
-    <p id="probability-caption"></p>
     <details id="probability-data">
       <summary data-i18n="probabilityTable">查看概率表</summary>
       <div id="probability-table"></div>

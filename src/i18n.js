@@ -389,6 +389,21 @@ const messages = {
 for (const code of ['en','fr','de','ja','es']) messages[code] = fromList(translations[code]);
 for (const code of ['ar','pt']) messages[code] = fromList(localized[code]);
 for (const [code, head] of Object.entries(fills)) messages[code] = fromList(completeList(code, head));
+const qualityPlaceholders = {
+  'zh-CN': '请输入', 'zh-TW': '請輸入', en: 'Enter', ar: 'أدخل', fr: 'Saisir', de: 'Eingeben',
+  id: 'Masukkan', it: 'Inserisci', ja: '入力してください', ko: '입력하세요', ms: 'Masukkan', pl: 'Wpisz',
+  pt: 'Insira', ru: 'Введите', es: 'Introduce', th: 'ป้อน', tr: 'Girin', vi: 'Nhập',
+};
+for (const [code, placeholder] of Object.entries(qualityPlaceholders)) messages[code].enterQuality = placeholder;
+const chipCostLabels = {
+  'zh-CN': '消耗 {cost} 张深度计算卡', 'zh-TW': '消耗 {cost} 張深度計算卡',
+  en: 'Uses {cost} Compute Chips', ar: 'تستهلك {cost} من شرائح الحوسبة', fr: 'Coûte {cost} puces informatiques',
+  de: 'Verbraucht {cost} Computerchips', id: 'Menggunakan {cost} Chip Komputasi', it: 'Consuma {cost} microchip',
+  ja: '{cost}個の演算チップを消費します', ko: '운산칩 {cost}개 소모', ms: 'Menggunakan {cost} Cip Komputer',
+  pl: 'Zużywa {cost} procesory', pt: 'Consome {cost} Chips de Computação', ru: 'Расходует {cost} вычислительных чипов',
+  es: 'Consume {cost} chips informáticos', th: 'ใช้ {cost} ชิปประมวลผล', tr: '{cost} Hesaplama Çipi tüketir', vi: 'Tiêu hao {cost} Chip Điện Toán',
+};
+for (const [code, label] of Object.entries(chipCostLabels)) messages[code].chipCost = label;
 for (const code of ['zh-CN','zh-TW']) messages[code].author = code === 'zh-CN' ? 'Warpath 钥钥 国际服 uid：35600096' : 'Warpath 钥钥 國際服 uid：35600096';
 messages.en.author = 'Warpath 钥钥 · Global UID: 35600096';
 messages.en.methodText = messages.en.methodText.replace('Refinement Calculator cards', 'Deep Calculation Cards');
