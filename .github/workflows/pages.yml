@@ -26,57 +26,55 @@ jobs:
         run: |
           set -euo pipefail
 
-          required_files=(
-            index.html
-            styles.css
-            src/app.js
-            src/calculator.js
-            src/i18n.js
-            src/input.js
-            src/model-loader.js
-            src/network-time.js
-            src/preferences.js
-            src/probability-chart.js
-            src/probability-data.js
-            src/viewer.js
-            assets/deep-calculation-card.png
-            flags/LICENSE
-            flags/br.svg
-            flags/cn.svg
-            flags/de.svg
-            flags/es.svg
-            flags/fr.svg
-            flags/gb.svg
-            flags/id.svg
-            flags/it.svg
-            flags/jp.svg
-            flags/kr.svg
-            flags/my.svg
-            flags/pl.svg
-            flags/ru.svg
-            flags/sa.svg
-            flags/th.svg
-            flags/tr.svg
-            flags/tw.svg
-            flags/vn.svg
-            vendor/chart.umd.js
-            vendor/chartjs-LICENSE.md
-            vendor/kurkle-color-LICENSE.md
-            data/runtime_models.json
-          )
+          manifest=".github/pages-files.txt"
+          if [[ ! -s "$manifest" ]]; then
+            echo "Pages 发布清单缺失或为空：$manifest" >&2
+            exit 1
+          fi
 
-          for file in "${required_files[@]}"; do
-            if [[ ! -s "$file" ]]; then
-              echo "缺少 Pages 运行文件：$file" >&2
+          declare -A seen=()
+          publish_files=()
+          line_number=0
+          while IFS= read -r file || [[ -n "$file" ]]; do
+            line_number=$((line_number + 1))
+            file="${file%$'\r'}"
+            if [[ -z "$file" ]]; then
+              echo "Pages 发布清单第 $line_number 行为空" >&2
               exit 1
             fi
-          done
+            if [[ ! "$file" =~ ^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$ ]] \
+                || [[ "/$file/" == *"/../"* ]] \
+                || [[ "/$file/" == *"/./"* ]]; then
+              echo "Pages 发布清单第 $line_number 行路径非法：$file" >&2
+              exit 1
+            fi
+            if [[ "$file" == "$manifest" ]]; then
+              echo "Pages 发布清单不能包含自身：$file" >&2
+              exit 1
+            fi
+            if [[ -n "${seen[$file]+present}" ]]; then
+              echo "Pages 发布清单第 $line_number 行重复：$file" >&2
+              exit 1
+            fi
+            seen["$file"]=1
+            if [[ ! -f "$file" || ! -s "$file" ]]; then
+              echo "Pages 发布文件缺失或为空：$file" >&2
+              exit 1
+            fi
+            publish_files+=("$file")
+          done < "$manifest"
+
+          if [[ ${#publish_files[@]} -eq 0 ]]; then
+            echo "Pages 发布清单为空：$manifest" >&2
+            exit 1
+          fi
 
           staging="$RUNNER_TEMP/pages-site"
-          mkdir -p "$staging/data"
-          cp index.html styles.css "$staging/"
-          cp -R src assets flags vendor "$staging/"
-          cp data/runtime_models.json "$staging/data/runtime_models.json"
+          mkdir -p "$staging"
+          for file in "${publish_files[@]}"; do
+            mkdir -p "$staging/$(dirname -- "$file")"
+            cp -- "$file" "$staging/$file"
+          done
           echo "path=$staging" >> "$GITHUB_OUTPUT"
       - name: 上传 Pages 构建产物
         uses: actions/upload-pages-artifact@v5
