@@ -967,11 +967,11 @@ dialog#lock-dialog {
 }
 
 dialog#server-welcome-dialog[open] {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  width: min(480px, calc(100% - 32px));
+  width: min(360px, calc(100% - 48px));
   max-width: 100%;
-  min-height: 180px;
   margin: auto;
   border: 1px solid var(--line);
   border-radius: 9px;
@@ -990,7 +990,7 @@ dialog#server-welcome-dialog[open] {
 #server-welcome-close {
   min-width: 112px;
   display: block;
-  margin: auto 0 0 auto;
+  margin: 0 auto;
 }
 
 dialog#lock-dialog.is-visible {
@@ -1188,7 +1188,8 @@ select:disabled {
     padding-top: 12px;
   }
 
-  dialog#lock-dialog {
+  dialog#lock-dialog,
+  dialog#server-welcome-dialog[open] {
     padding: 18px;
   }
 }
