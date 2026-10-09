@@ -18,7 +18,7 @@ The Arabic interface uses right-to-left (RTL) layout.
 - Profile: [bilibili](https://space.bilibili.com/30300043)
 
 
-## 页面操作
+## 页面操作 Page Operation
 
 在左侧列输入你的当前词条属性，在中间列输入你在游戏中的深度计算结果。然后点击“计算”按钮，计算器会自动计算出结果并推荐你保留或是放弃。
 
