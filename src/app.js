@@ -468,10 +468,14 @@ $('reset').addEventListener('click', () => resetQualityState({ render: true }));
 $('apply').addEventListener('click', acceptWashResult);
 $('next-roll').addEventListener('click', discardWashResult);
 $('retry').addEventListener('click', loadCurrentModel);
+$('startup-notice-close').addEventListener('click', () => viewer.startupNoticeClose());
+viewer.bindStartupNoticeDismissed(() => {
+  if (showServerWelcome) viewer.showServerWelcome();
+});
 window.addEventListener('focus', checkStageBoundary);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') checkStageBoundary();
 });
 renderLanguage();
-if (showServerWelcome) viewer.showServerWelcome();
+viewer.showStartupNotice();
 loadCurrentModel();

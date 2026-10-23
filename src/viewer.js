@@ -398,6 +398,7 @@ export function createViewer({ translate, languages, browserPreference, showServ
   }
 
   function showServerWelcome() { $('server-welcome-dialog').showModal(); }
+  function showStartupNotice() { $('startup-notice-dialog').showModal(); }
 
   function bindLanguagePopover({ onLocaleSelect }) {
     $('language').addEventListener('click', toggleLanguageOptions);
@@ -441,6 +442,8 @@ export function createViewer({ translate, languages, browserPreference, showServ
   function focusQuality(kind, index) { $(`${kind}-${index}`)?.focus(); }
   function setProbabilityModel(model) { probabilityViewer.setModel(model); }
   function welcomeDialogClose() { $('server-welcome-dialog').close(); }
+  function startupNoticeClose() { $('startup-notice-dialog').close(); }
+  function bindStartupNoticeDismissed(onDismiss) { $('startup-notice-dialog').addEventListener('close', onDismiss); }
   function bindWelcomeDismissed(onDismiss) { $('server-welcome-dialog').addEventListener('close', onDismiss); }
 
   return {
@@ -448,6 +451,7 @@ export function createViewer({ translate, languages, browserPreference, showServ
     renderChipCost, renderLoadStatus, showFormError, clearFormError, clearRows, setInputsDisabled,
     updateQualityError, openLockConfirmation, closeLockDialog, lockDialogOpen,
     focusLockToggle, focusQuality, setProbabilityModel,
-    showServerWelcome, welcomeDialogClose, bindWelcomeDismissed, bindLanguagePopover, closeLanguagePopover,
+    showServerWelcome, welcomeDialogClose, bindWelcomeDismissed, showStartupNotice, startupNoticeClose,
+    bindStartupNoticeDismissed, bindLanguagePopover, closeLanguagePopover,
   };
 }
