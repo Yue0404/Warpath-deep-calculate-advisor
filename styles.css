@@ -965,7 +965,8 @@ dialog#lock-dialog {
   transition: opacity .2s ease, transform .2s ease;
 }
 
-dialog#server-welcome-dialog[open] {
+dialog#server-welcome-dialog[open],
+dialog#startup-notice-dialog[open] {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -979,14 +980,16 @@ dialog#server-welcome-dialog[open] {
   color: var(--text);
 }
 
-#welcome-server {
+#welcome-server,
+#startup-notice-message {
   margin: 0 0 20px;
   font-size: 16px;
   line-height: 1.7;
   overflow-wrap: anywhere;
 }
 
-#server-welcome-close {
+#server-welcome-close,
+#startup-notice-close {
   min-width: 112px;
   display: block;
   margin: 0 auto;
@@ -1188,7 +1191,8 @@ select:disabled {
   }
 
   dialog#lock-dialog,
-  dialog#server-welcome-dialog[open] {
+  dialog#server-welcome-dialog[open],
+  dialog#startup-notice-dialog[open] {
     padding: 18px;
   }
 }
