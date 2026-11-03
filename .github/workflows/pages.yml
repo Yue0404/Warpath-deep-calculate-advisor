@@ -1,0 +1,98 @@
+name: GitHub Pages
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 取出仓库
+        uses: actions/checkout@v7.0.1
+      - name: 校验 Pages 运行文件并打包
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          manifest=".github/pages-files.txt"
+          if [[ ! -s "$manifest" ]]; then
+            echo "Pages 发布清单缺失或为空：$manifest" >&2
+            exit 1
+          fi
+
+          declare -A seen=()
+          publish_files=()
+          line_number=0
+          while IFS= read -r file || [[ -n "$file" ]]; do
+            line_number=$((line_number + 1))
+            file="${file%$'\r'}"
+            if [[ -z "$file" ]]; then
+              echo "Pages 发布清单第 $line_number 行为空" >&2
+              exit 1
+            fi
+            if [[ ! "$file" =~ ^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$ ]] \
+                || [[ "/$file/" == *"/../"* ]] \
+                || [[ "/$file/" == *"/./"* ]]; then
+              echo "Pages 发布清单第 $line_number 行路径非法：$file" >&2
+              exit 1
+            fi
+            if [[ "$file" == "$manifest" ]]; then
+              echo "Pages 发布清单不能包含自身：$file" >&2
+              exit 1
+            fi
+            if [[ -n "${seen[$file]+present}" ]]; then
+              echo "Pages 发布清单第 $line_number 行重复：$file" >&2
+              exit 1
+            fi
+            seen["$file"]=1
+            if [[ ! -f "$file" || ! -s "$file" ]]; then
+              echo "Pages 发布文件缺失或为空：$file" >&2
+              exit 1
+            fi
+            publish_files+=("$file")
+          done < "$manifest"
+
+          if [[ ${#publish_files[@]} -eq 0 ]]; then
+            echo "Pages 发布清单为空：$manifest" >&2
+            exit 1
+          fi
+
+          staging="$RUNNER_TEMP/pages-site"
+          mkdir -p "$staging"
+          for file in "${publish_files[@]}"; do
+            mkdir -p "$staging/$(dirname -- "$file")"
+            cp -- "$file" "$staging/$file"
+          done
+          echo "path=$staging" >> "$GITHUB_OUTPUT"
+      - name: 上传 Pages 构建产物
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: ${{ steps.package.outputs.path }}
+
+  deploy:
+    needs: package
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+      actions: read
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 发布到 GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5.0.1

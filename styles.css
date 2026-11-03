@@ -1,0 +1,94 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: #202327;
+  color: #b9d9eb;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  min-width: 280px;
+  min-height: 100svh;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.notice {
+  width: min(100%, 680px);
+  padding: clamp(22px, 5vw, 38px);
+  border: 1px solid #47515a;
+  border-radius: 14px;
+  background: #282d32;
+  box-shadow: 0 16px 48px rgb(0 0 0 / 18%);
+}
+
+.language-control {
+  width: fit-content;
+  margin-inline-start: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #b4c7d2;
+  font-size: 14px;
+}
+
+select {
+  max-width: min(210px, 56vw);
+  padding: 8px 32px 8px 11px;
+  border: 1px solid #56636d;
+  border-radius: 8px;
+  background: #22272c;
+  color: #c0dff0;
+  font: inherit;
+}
+
+select:focus-visible, .wiki-link:focus-visible {
+  outline: 3px solid #85c8ed;
+  outline-offset: 3px;
+}
+
+h1 {
+  margin: 30px 0 24px;
+  font-size: clamp(18px, 3.3vw, 23px);
+  font-weight: 550;
+  line-height: 1.9;
+  letter-spacing: .025em;
+  overflow-wrap: anywhere;
+}
+
+.wiki-link {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  border: 1px solid #82c6e9;
+  border-radius: 8px;
+  background: #8fcbea;
+  color: #17232b;
+  font-weight: 650;
+  line-height: 1.5;
+  text-align: center;
+  text-decoration: none;
+  transition: background-color .16s ease, transform .16s ease;
+}
+
+.wiki-link:hover { background: #adddf5; transform: translateY(-1px); }
+
+@media (max-width: 420px) {
+  body { padding: 16px; }
+  .notice { padding: 20px; }
+  h1 { margin-top: 24px; }
+  .wiki-link { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}

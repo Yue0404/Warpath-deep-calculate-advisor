@@ -1,0 +1,12 @@
+/*
+!/.gitignore
+!/README.md
+!/index.html
+!/styles.css
+!/landing.js
+!/.github/
+/.github/*
+!/.github/pages-files.txt
+!/.github/workflows/
+/.github/workflows/*
+!/.github/workflows/pages.yml
